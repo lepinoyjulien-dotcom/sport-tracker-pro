@@ -1,0 +1,92 @@
+// Schema Prisma pour Sport Tracker Pro
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  weight    Float    @default(70.0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cardioActivities CardioActivity[]
+  muscuActivities  MuscuActivity[]
+  weightEntries    WeightEntry[]
+  exercises        Exercise[]
+
+  @@map("users")
+}
+
+model Exercise {
+  id        String   @id @default(uuid())
+  name      String
+  type      String   // 'cardio' ou 'muscu'
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  cardioActivities CardioActivity[]
+  muscuActivities  MuscuActivity[]
+
+  @@unique([userId, name, type])
+  @@map("exercises")
+}
+
+model CardioActivity {
+  id         String   @id @default(uuid())
+  date       DateTime @db.Date
+  minutes    Int
+  intensity  String   // 'Faible', 'Moyenne', 'Haute'
+  calories   Int
+  userId     String
+  exerciseId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@map("cardio_activities")
+}
+
+model MuscuActivity {
+  id         String   @id @default(uuid())
+  date       DateTime @db.Date
+  sets       Int
+  reps       Int
+  weight     Float    @default(0)
+  calories   Int
+  userId     String
+  exerciseId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@map("muscu_activities")
+}
+
+model WeightEntry {
+  id         String   @id @default(uuid())
+  date       DateTime @db.Date
+  weight     Float
+  muscleMass Float?
+  bodyFat    Float?
+  userId     String
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@map("weight_entries")
+}
