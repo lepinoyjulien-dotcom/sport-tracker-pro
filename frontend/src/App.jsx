@@ -1,35 +1,52 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import CardioTab from './components/CardioTab'
+import MuscuTab from './components/MuscuTab'
+import WeightTab from './components/WeightTab'
+import StatsTab from './components/StatsTab'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [token, setToken] = useState(null)
+  const [user, setUser] = useState(null)
   const [showLogin, setShowLogin] = useState(true)
 
   useEffect(() => {
     const savedToken = localStorage.getItem('token')
-    if (savedToken) {
+    const savedUser = localStorage.getItem('user')
+    if (savedToken && savedUser) {
       setToken(savedToken)
+      setUser(JSON.parse(savedUser))
       setIsAuthenticated(true)
     }
   }, [])
 
   const handleLogout = () => {
     localStorage.removeItem('token')
+    localStorage.removeItem('user')
     setToken(null)
+    setUser(null)
     setIsAuthenticated(false)
     setShowLogin(true)
   }
 
-  if (!isAuthenticated) {
-    return showLogin ? 
-      <LoginForm onSuccess={(token) => { setToken(token); setIsAuthenticated(true); }} onToggle={() => setShowLogin(false)} /> :
-      <RegisterForm onSuccess={(token) => { setToken(token); setIsAuthenticated(true); }} onToggle={() => setShowLogin(true)} />
+  const handleAuthSuccess = (token, userData) => {
+    localStorage.setItem('token', token)
+    localStorage.setItem('user', JSON.stringify(userData))
+    setToken(token)
+    setUser(userData)
+    setIsAuthenticated(true)
   }
 
-  return <Dashboard token={token} onLogout={handleLogout} />
+  if (!isAuthenticated) {
+    return showLogin ? 
+      <LoginForm onSuccess={handleAuthSuccess} onToggle={() => setShowLogin(false)} /> :
+      <RegisterForm onSuccess={handleAuthSuccess} onToggle={() => setShowLogin(true)} />
+  }
+
+  return <Dashboard token={token} user={user} onLogout={handleLogout} />
 }
 
 function LoginForm({ onSuccess, onToggle }) {
@@ -45,8 +62,7 @@ function LoginForm({ onSuccess, onToggle }) {
 
     try {
       const response = await axios.post(`${API_URL}/api/auth/login`, { email, password })
-      localStorage.setItem('token', response.data.token)
-      onSuccess(response.data.token)
+      onSuccess(response.data.token, response.data.user)
     } catch (err) {
       setError(err.response?.data?.error || 'Erreur de connexion')
     } finally {
@@ -55,12 +71,12 @@ function LoginForm({ onSuccess, onToggle }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
-      <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}}>
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="text-5xl mb-4">💪</div>
-          <h1 className="text-2xl font-bold text-gray-900">Sport Tracker Pro</h1>
-          <p className="text-sm text-gray-500 mt-2">Connexion</p>
+          <div className="text-6xl mb-4">💪</div>
+          <h1 className="text-3xl font-bold text-gray-900">Sport Tracker Pro</h1>
+          <p className="text-sm text-gray-500 mt-2">Connexion à votre espace</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -71,24 +87,24 @@ function LoginForm({ onSuccess, onToggle }) {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
               placeholder="votre@email.com"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Mot de passe</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Mot de passe</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
               placeholder="••••••••"
               required
             />
@@ -97,7 +113,7 @@ function LoginForm({ onSuccess, onToggle }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gray-900 hover:bg-gray-800 text-white py-3 rounded-lg font-semibold transition-colors"
+            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white py-3 rounded-lg font-semibold transition-all transform hover:scale-105"
           >
             {loading ? 'Connexion...' : 'Se connecter'}
           </button>
@@ -106,7 +122,7 @@ function LoginForm({ onSuccess, onToggle }) {
         <div className="mt-6 text-center">
           <button
             onClick={onToggle}
-            className="text-sm text-gray-600 hover:text-gray-900"
+            className="text-sm text-gray-600 hover:text-purple-600"
           >
             Pas de compte ? <span className="font-semibold">S'inscrire</span>
           </button>
@@ -130,8 +146,7 @@ function RegisterForm({ onSuccess, onToggle }) {
 
     try {
       const response = await axios.post(`${API_URL}/api/auth/register`, { name, email, password })
-      localStorage.setItem('token', response.data.token)
-      onSuccess(response.data.token)
+      onSuccess(response.data.token, response.data.user)
     } catch (err) {
       setError(err.response?.data?.error || "Erreur lors de l'inscription")
     } finally {
@@ -140,12 +155,12 @@ function RegisterForm({ onSuccess, onToggle }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
-      <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}}>
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="text-5xl mb-4">💪</div>
-          <h1 className="text-2xl font-bold text-gray-900">Sport Tracker Pro</h1>
-          <p className="text-sm text-gray-500 mt-2">Créer un compte</p>
+          <div className="text-6xl mb-4">💪</div>
+          <h1 className="text-3xl font-bold text-gray-900">Sport Tracker Pro</h1>
+          <p className="text-sm text-gray-500 mt-2">Créer votre compte</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -156,36 +171,36 @@ function RegisterForm({ onSuccess, onToggle }) {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Nom</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Nom</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
               placeholder="Votre nom"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
               placeholder="votre@email.com"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Mot de passe</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Mot de passe</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
               placeholder="••••••••"
               required
               minLength={6}
@@ -195,7 +210,7 @@ function RegisterForm({ onSuccess, onToggle }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gray-900 hover:bg-gray-800 text-white py-3 rounded-lg font-semibold transition-colors"
+            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white py-3 rounded-lg font-semibold transition-all transform hover:scale-105"
           >
             {loading ? 'Création...' : 'Créer mon compte'}
           </button>
@@ -204,7 +219,7 @@ function RegisterForm({ onSuccess, onToggle }) {
         <div className="mt-6 text-center">
           <button
             onClick={onToggle}
-            className="text-sm text-gray-600 hover:text-gray-900"
+            className="text-sm text-gray-600 hover:text-purple-600"
           >
             Déjà un compte ? <span className="font-semibold">Se connecter</span>
           </button>
@@ -214,27 +229,30 @@ function RegisterForm({ onSuccess, onToggle }) {
   )
 }
 
-function Dashboard({ token, onLogout }) {
-  const [apiStatus, setApiStatus] = useState('Vérification...')
+function Dashboard({ token, user, onLogout }) {
+  const [activeTab, setActiveTab] = useState('cardio')
+  const [currentDate] = useState(new Date().toISOString().split('T')[0])
 
-  useEffect(() => {
-    axios.get(`${API_URL}/health`)
-      .then(() => setApiStatus('✅ API connectée'))
-      .catch(() => setApiStatus('❌ API déconnectée'))
-  }, [])
+  const tabs = [
+    { id: 'cardio', icon: '🏃', label: 'Cardio', color: 'from-red-500 to-pink-500' },
+    { id: 'muscu', icon: '💪', label: 'Muscu', color: 'from-blue-500 to-cyan-500' },
+    { id: 'weight', icon: '⚖️', label: 'Poids', color: 'from-green-500 to-emerald-500' },
+    { id: 'stats', icon: '📊', label: 'Stats', color: 'from-orange-500 to-yellow-500' },
+  ]
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-gray-900 to-gray-700 rounded-xl flex items-center justify-center text-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">
                 💪
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Sport Tracker Pro</h1>
-                <p className="text-sm text-gray-500">{apiStatus}</p>
+                <p className="text-sm text-gray-500">Bonjour {user?.name} !</p>
               </div>
             </div>
             <button
@@ -244,41 +262,33 @@ function Dashboard({ token, onLogout }) {
               Déconnexion
             </button>
           </div>
-        </div>
 
-        <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-          <div className="text-6xl mb-4">🎉</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Application Déployée !</h2>
-          <p className="text-gray-600 mb-6">
-            Votre Sport Tracker Pro est maintenant en ligne et fonctionnel !
-          </p>
-          
-          <div className="grid grid-cols-2 gap-4 max-w-md mx-auto mb-6">
-            <div className="p-4 bg-gradient-to-br from-red-50 to-red-100 rounded-lg">
-              <div className="text-3xl mb-2">🏃</div>
-              <div className="text-sm font-semibold text-red-900">Cardio</div>
-            </div>
-            <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
-              <div className="text-3xl mb-2">💪</div>
-              <div className="text-sm font-semibold text-blue-900">Muscu</div>
-            </div>
-            <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
-              <div className="text-3xl mb-2">⚖️</div>
-              <div className="text-sm font-semibold text-green-900">Poids</div>
-            </div>
-            <div className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg">
-              <div className="text-3xl mb-2">📊</div>
-              <div className="text-sm font-semibold text-orange-900">Stats</div>
-            </div>
-          </div>
-
-          <div className="text-sm text-gray-500">
-            ✅ Backend déployé sur Render<br/>
-            ✅ Frontend déployé sur Vercel<br/>
-            ✅ Base de données sur Neon<br/>
-            ✅ 100% Gratuit !
+          {/* Tabs */}
+          <div className="flex gap-2 mt-4 overflow-x-auto">
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                  activeTab === tab.id
+                    ? `bg-gradient-to-r ${tab.color} text-white shadow-lg`
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <span className="text-xl">{tab.icon}</span>
+                <span>{tab.label}</span>
+              </button>
+            ))}
           </div>
         </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        {activeTab === 'cardio' && <CardioTab token={token} currentDate={currentDate} />}
+        {activeTab === 'muscu' && <MuscuTab token={token} currentDate={currentDate} />}
+        {activeTab === 'weight' && <WeightTab token={token} currentDate={currentDate} />}
+        {activeTab === 'stats' && <StatsTab token={token} />}
       </div>
     </div>
   )
