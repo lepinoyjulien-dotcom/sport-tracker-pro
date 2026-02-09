@@ -1,66 +1,61 @@
+// backend/src/routes/auth.js
 const express = require('express');
-const bcrypt = require('bcryptjs');
+const router = express.Router();
+const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
 
-const router = express.Router();
 const prisma = new PrismaClient();
 
 // Register
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { name, email, password } = req.body;
 
-    // Check if user exists
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    });
+
     if (existingUser) {
-      return res.status(400).json({ error: 'Email already registered' });
+      return res.status(400).json({ error: 'Email déjà utilisé' });
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
+    // Create user with default role "user"
     const user = await prisma.user.create({
       data: {
+        name,
         email,
         password: hashedPassword,
-        name,
-      },
+        role: 'user', // Default role
+        weight: 70 // Default weight
+      }
     });
 
-    // Create default exercises
-    const defaultCardioExercises = ['Course', 'Vélo', 'Natation', 'Marche'];
-    const defaultMuscuExercises = ['Développé couché', 'Squats', 'Tractions', 'Abdos'];
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
 
-    await Promise.all([
-      ...defaultCardioExercises.map(name =>
-        prisma.exercise.create({
-          data: { name, type: 'cardio', userId: user.id }
-        })
-      ),
-      ...defaultMuscuExercises.map(name =>
-        prisma.exercise.create({
-          data: { name, type: 'muscu', userId: user.id }
-        })
-      ),
-    ]);
-
-    // Generate token
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '30d' });
-
-    res.json({
+    // Return user info with role
+    res.status(201).json({
       token,
       user: {
         id: user.id,
-        email: user.email,
         name: user.name,
+        email: user.email,
         weight: user.weight,
-      },
+        role: user.role // Include role in response
+      }
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Registration failed' });
+    console.error('Register error:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'inscription' });
   }
 });
 
@@ -70,32 +65,49 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
     // Find user
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     }
 
     // Check password
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     }
 
-    // Generate token
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    // Update last login
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() }
+    });
 
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    // Return user info WITH ROLE
     res.json({
       token,
       user: {
         id: user.id,
-        email: user.email,
         name: user.name,
+        email: user.email,
         weight: user.weight,
-      },
+        role: user.role, // CRITICAL: Include role in response
+        createdAt: user.createdAt
+      }
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Login failed' });
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Erreur lors de la connexion' });
   }
 });
 
