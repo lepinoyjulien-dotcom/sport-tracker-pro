@@ -1,4 +1,4 @@
-// Schema Prisma pour Sport Tracker Pro
+// Updated Prisma Schema with Role System
 
 generator client {
   provider = "prisma-client-js"
@@ -13,8 +13,10 @@ model User {
   id        String   @id @default(uuid())
   email     String   @unique
   password  String
-  name      String?
+  name      String
   weight    Float    @default(70.0)
+  role      String   @default("user") // "user" or "admin"
+  lastLogin DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -23,29 +25,27 @@ model User {
   weightEntries    WeightEntry[]
   exercises        Exercise[]
 
-  @@map("users")
+  @@index([role])
 }
 
 model Exercise {
-  id        String   @id @default(uuid())
-  name      String
-  type      String   // 'cardio' ou 'muscu'
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  id     String @id @default(uuid())
+  name   String
+  type   String // "cardio" or "muscu"
+  userId String
 
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   cardioActivities CardioActivity[]
   muscuActivities  MuscuActivity[]
 
   @@unique([userId, name, type])
-  @@map("exercises")
 }
 
 model CardioActivity {
   id         String   @id @default(uuid())
   date       DateTime @db.Date
   minutes    Int
-  intensity  String   // 'Faible', 'Moyenne', 'Haute'
+  intensity  String
   calories   Int
   userId     String
   exerciseId String
@@ -55,7 +55,6 @@ model CardioActivity {
   exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
-  @@map("cardio_activities")
 }
 
 model MuscuActivity {
@@ -73,7 +72,6 @@ model MuscuActivity {
   exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
-  @@map("muscu_activities")
 }
 
 model WeightEntry {
@@ -88,5 +86,4 @@ model WeightEntry {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
-  @@map("weight_entries")
 }

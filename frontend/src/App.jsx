@@ -4,6 +4,9 @@ import CardioTab from './components/CardioTab'
 import MuscuTab from './components/MuscuTab'
 import WeightTab from './components/WeightTab'
 import StatsTab from './components/StatsTab'
+import AdminTab from './components/AdminTab'
+import ProfileTab from './components/ProfileTab'
+import DateSelector from './components/DateSelector'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
@@ -40,13 +43,18 @@ function App() {
     setIsAuthenticated(true)
   }
 
+  const handleUserUpdate = (updatedUser) => {
+    localStorage.setItem('user', JSON.stringify(updatedUser))
+    setUser(updatedUser)
+  }
+
   if (!isAuthenticated) {
     return showLogin ? 
       <LoginForm onSuccess={handleAuthSuccess} onToggle={() => setShowLogin(false)} /> :
       <RegisterForm onSuccess={handleAuthSuccess} onToggle={() => setShowLogin(true)} />
   }
 
-  return <Dashboard token={token} user={user} onLogout={handleLogout} />
+  return <Dashboard token={token} user={user} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />
 }
 
 function LoginForm({ onSuccess, onToggle }) {
@@ -126,6 +134,13 @@ function LoginForm({ onSuccess, onToggle }) {
           >
             Pas de compte ? <span className="font-semibold">S'inscrire</span>
           </button>
+        </div>
+
+        {/* Admin Login Hint */}
+        <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-xs text-blue-700 text-center">
+            💡 Compte admin : admin@sporttracker.com / admin
+          </p>
         </div>
       </div>
     </div>
@@ -229,16 +244,22 @@ function RegisterForm({ onSuccess, onToggle }) {
   )
 }
 
-function Dashboard({ token, user, onLogout }) {
+function Dashboard({ token, user, onLogout, onUserUpdate }) {
   const [activeTab, setActiveTab] = useState('cardio')
-  const [currentDate] = useState(new Date().toISOString().split('T')[0])
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
 
   const tabs = [
     { id: 'cardio', icon: '🏃', label: 'Cardio', color: 'from-red-500 to-pink-500' },
     { id: 'muscu', icon: '💪', label: 'Muscu', color: 'from-blue-500 to-cyan-500' },
     { id: 'weight', icon: '⚖️', label: 'Poids', color: 'from-green-500 to-emerald-500' },
     { id: 'stats', icon: '📊', label: 'Stats', color: 'from-orange-500 to-yellow-500' },
+    { id: 'profile', icon: '👤', label: 'Profil', color: 'from-purple-500 to-pink-500' },
   ]
+
+  // Ajouter l'onglet Admin si l'utilisateur est admin
+  if (user?.role === 'admin') {
+    tabs.push({ id: 'admin', icon: '⚙️', label: 'Admin', color: 'from-gray-700 to-gray-900' })
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -252,7 +273,14 @@ function Dashboard({ token, user, onLogout }) {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Sport Tracker Pro</h1>
-                <p className="text-sm text-gray-500">Bonjour {user?.name} !</p>
+                <p className="text-sm text-gray-500">
+                  Bonjour {user?.name} !
+                  {user?.role === 'admin' && (
+                    <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium">
+                      👑 Admin
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
             <button
@@ -264,12 +292,12 @@ function Dashboard({ token, user, onLogout }) {
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-2 mt-4 overflow-x-auto">
+          <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
             {tabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all whitespace-nowrap ${
                   activeTab === tab.id
                     ? `bg-gradient-to-r ${tab.color} text-white shadow-lg`
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -285,10 +313,23 @@ function Dashboard({ token, user, onLogout }) {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {activeTab === 'cardio' && <CardioTab token={token} currentDate={currentDate} />}
-        {activeTab === 'muscu' && <MuscuTab token={token} currentDate={currentDate} />}
-        {activeTab === 'weight' && <WeightTab token={token} currentDate={currentDate} />}
+        {/* Date Selector - Visible seulement pour cardio, muscu, weight */}
+        {['cardio', 'muscu', 'weight'].includes(activeTab) && (
+          <div className="mb-6">
+            <DateSelector 
+              selectedDate={selectedDate} 
+              onDateChange={setSelectedDate} 
+            />
+          </div>
+        )}
+
+        {/* Tab Content */}
+        {activeTab === 'cardio' && <CardioTab token={token} currentDate={selectedDate} />}
+        {activeTab === 'muscu' && <MuscuTab token={token} currentDate={selectedDate} />}
+        {activeTab === 'weight' && <WeightTab token={token} currentDate={selectedDate} />}
         {activeTab === 'stats' && <StatsTab token={token} />}
+        {activeTab === 'profile' && <ProfileTab token={token} user={user} onUserUpdate={onUserUpdate} />}
+        {activeTab === 'admin' && user?.role === 'admin' && <AdminTab token={token} currentUser={user} />}
       </div>
     </div>
   )
