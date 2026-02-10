@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import { ExercisesProvider } from './ExercisesContext'
 import CardioTab from './components/CardioTab'
 import MuscuTab from './components/MuscuTab'
 import WeightTab from './components/WeightTab'
@@ -54,7 +55,11 @@ function App() {
       <RegisterForm onSuccess={handleAuthSuccess} onToggle={() => setShowLogin(true)} />
   }
 
-  return <Dashboard token={token} user={user} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />
+  return (
+    <ExercisesProvider token={token}>
+      <Dashboard token={token} user={user} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />
+    </ExercisesProvider>
+  )
 }
 
 function LoginForm({ onSuccess, onToggle }) {
@@ -100,8 +105,8 @@ function LoginForm({ onSuccess, onToggle }) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
-              placeholder="votre@email.com"
               required
             />
           </div>
@@ -112,8 +117,8 @@ function LoginForm({ onSuccess, onToggle }) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
-              placeholder="••••••••"
               required
             />
           </div>
@@ -121,7 +126,7 @@ function LoginForm({ onSuccess, onToggle }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white py-3 rounded-lg font-semibold transition-all transform hover:scale-105"
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-3 rounded-lg font-semibold transition-all shadow-lg disabled:opacity-50"
           >
             {loading ? 'Connexion...' : 'Se connecter'}
           </button>
@@ -130,9 +135,9 @@ function LoginForm({ onSuccess, onToggle }) {
         <div className="mt-6 text-center">
           <button
             onClick={onToggle}
-            className="text-sm text-gray-600 hover:text-purple-600"
+            className="text-purple-600 hover:text-purple-700 text-sm font-medium"
           >
-            Pas de compte ? <span className="font-semibold">S'inscrire</span>
+            Pas encore de compte ? Créer un compte
           </button>
         </div>
       </div>
@@ -141,9 +146,10 @@ function LoginForm({ onSuccess, onToggle }) {
 }
 
 function RegisterForm({ onSuccess, onToggle }) {
-  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
+  const [weight, setWeight] = useState('70')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -153,10 +159,15 @@ function RegisterForm({ onSuccess, onToggle }) {
     setLoading(true)
 
     try {
-      const response = await axios.post(`${API_URL}/api/auth/register`, { name, email, password })
+      const response = await axios.post(`${API_URL}/api/auth/register`, {
+        email,
+        password,
+        name,
+        weight: parseFloat(weight)
+      })
       onSuccess(response.data.token, response.data.user)
     } catch (err) {
-      setError(err.response?.data?.error || "Erreur lors de l'inscription")
+      setError(err.response?.data?.error || 'Erreur lors de l\'inscription')
     } finally {
       setLoading(false)
     }
@@ -184,8 +195,8 @@ function RegisterForm({ onSuccess, onToggle }) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              autoComplete="name"
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
-              placeholder="Votre nom"
               required
             />
           </div>
@@ -196,8 +207,8 @@ function RegisterForm({ onSuccess, onToggle }) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
-              placeholder="votre@email.com"
               required
             />
           </div>
@@ -208,17 +219,29 @@ function RegisterForm({ onSuccess, onToggle }) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
-              placeholder="••••••••"
-              required
               minLength={6}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Poids (kg)</label>
+            <input
+              type="number"
+              step="0.1"
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+              required
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white py-3 rounded-lg font-semibold transition-all transform hover:scale-105"
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-3 rounded-lg font-semibold transition-all shadow-lg disabled:opacity-50"
           >
             {loading ? 'Création...' : 'Créer mon compte'}
           </button>
@@ -227,9 +250,9 @@ function RegisterForm({ onSuccess, onToggle }) {
         <div className="mt-6 text-center">
           <button
             onClick={onToggle}
-            className="text-sm text-gray-600 hover:text-purple-600"
+            className="text-purple-600 hover:text-purple-700 text-sm font-medium"
           >
-            Déjà un compte ? <span className="font-semibold">Se connecter</span>
+            Déjà un compte ? Se connecter
           </button>
         </div>
       </div>
@@ -238,54 +261,47 @@ function RegisterForm({ onSuccess, onToggle }) {
 }
 
 function Dashboard({ token, user, onLogout, onUserUpdate }) {
-  const [activeTab, setActiveTab] = useState('cardio')
+  const [activeTab, setActiveTab] = useState('stats')
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
-  
-  // Load visible tabs preferences
-  const [visibleTabs, setVisibleTabs] = useState({
-    cardio: true,
-    muscu: true,
-    weight: true
-  })
+  const [visibleTabs, setVisibleTabs] = useState({ cardio: true, muscu: true, weight: true })
 
   useEffect(() => {
     const saved = localStorage.getItem('visibleTabs')
     if (saved) {
-      setVisibleTabs(JSON.parse(saved))
+      try {
+        setVisibleTabs(JSON.parse(saved))
+      } catch (e) {
+        console.error('Error parsing visibleTabs:', e)
+      }
     }
   }, [])
 
-  // Build tabs list based on visibility settings
   const buildTabs = () => {
-    const tabs = []
-    
+    const tabs = [
+      { id: 'stats', label: 'Stats', icon: '📊', color: 'from-purple-500 to-blue-500' }
+    ]
+
     if (visibleTabs.cardio) {
-      tabs.push({ id: 'cardio', icon: '🏃', label: 'Cardio', color: 'from-red-500 to-pink-500' })
+      tabs.push({ id: 'cardio', label: 'Cardio', icon: '🏃', color: 'from-red-500 to-orange-500' })
     }
-    
     if (visibleTabs.muscu) {
-      tabs.push({ id: 'muscu', icon: '💪', label: 'Muscu', color: 'from-blue-500 to-cyan-500' })
+      tabs.push({ id: 'muscu', label: 'Muscu', icon: '💪', color: 'from-blue-500 to-cyan-500' })
     }
-    
     if (visibleTabs.weight) {
-      tabs.push({ id: 'weight', icon: '⚖️', label: 'Poids', color: 'from-green-500 to-emerald-500' })
+      tabs.push({ id: 'weight', label: 'Poids', icon: '⚖️', color: 'from-green-500 to-emerald-500' })
     }
-    
-    // Always visible tabs
-    tabs.push({ id: 'stats', icon: '📊', label: 'Stats', color: 'from-orange-500 to-yellow-500' })
-    tabs.push({ id: 'profile', icon: '👤', label: 'Profil', color: 'from-purple-500 to-pink-500' })
-    
-    // Admin tab (always visible for admins)
+
+    tabs.push({ id: 'profile', label: 'Profil', icon: '👤', color: 'from-indigo-500 to-purple-500' })
+
     if (user?.role === 'admin') {
-      tabs.push({ id: 'admin', icon: '⚙️', label: 'Admin', color: 'from-gray-700 to-gray-900' })
+      tabs.push({ id: 'admin', label: 'Admin', icon: '👑', color: 'from-yellow-500 to-red-500' })
     }
-    
+
     return tabs
   }
 
   const tabs = buildTabs()
 
-  // Set first visible tab as active if current tab is hidden
   useEffect(() => {
     if (!tabs.find(t => t.id === activeTab)) {
       setActiveTab(tabs[0]?.id || 'stats')
@@ -293,42 +309,37 @@ function Dashboard({ token, user, onLogout, onUserUpdate }) {
   }, [visibleTabs])
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">
-                💪
-              </div>
+              <div className="text-3xl">💪</div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Sport Tracker Pro</h1>
-                <p className="text-sm text-gray-500">
-                  Bonjour {user?.name} !
-                  {user?.role === 'admin' && (
-                    <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium">
-                      👑 Admin
-                    </span>
-                  )}
-                </p>
+                <p className="text-sm text-gray-500">Bienvenue, {user?.name}</p>
               </div>
             </div>
             <button
               onClick={onLogout}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors"
             >
               Déconnexion
             </button>
           </div>
+        </div>
+      </div>
 
-          {/* Tabs */}
-          <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
+      {/* Tabs */}
+      <div className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex gap-2 overflow-x-auto py-2">
             {tabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all whitespace-nowrap ${
+                className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all whitespace-nowrap ${
                   activeTab === tab.id
                     ? `bg-gradient-to-r ${tab.color} text-white shadow-lg`
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -342,29 +353,24 @@ function Dashboard({ token, user, onLogout, onUserUpdate }) {
         </div>
       </div>
 
+      {/* Date Selector */}
+      {['cardio', 'muscu', 'weight'].includes(activeTab) && (
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <DateSelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
+        </div>
+      )}
+
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Date Selector - Visible seulement pour cardio, muscu, weight */}
-        {['cardio', 'muscu', 'weight'].includes(activeTab) && (
-          <div className="mb-6">
-            <DateSelector 
-              selectedDate={selectedDate} 
-              onDateChange={setSelectedDate} 
-            />
-          </div>
-        )}
-
-        {/* Tab Content */}
-        {activeTab === 'cardio' && visibleTabs.cardio && <CardioTab token={token} currentDate={selectedDate} />}
-        {activeTab === 'muscu' && visibleTabs.muscu && <MuscuTab token={token} currentDate={selectedDate} />}
-        {activeTab === 'weight' && visibleTabs.weight && <WeightTab token={token} currentDate={selectedDate} />}
         {activeTab === 'stats' && <StatsTab token={token} />}
+        {activeTab === 'cardio' && <CardioTab token={token} selectedDate={selectedDate} user={user} />}
+        {activeTab === 'muscu' && <MuscuTab token={token} selectedDate={selectedDate} user={user} />}
+        {activeTab === 'weight' && <WeightTab token={token} selectedDate={selectedDate} />}
         {activeTab === 'profile' && <ProfileTab token={token} user={user} onUserUpdate={onUserUpdate} />}
-        {activeTab === 'admin' && user?.role === 'admin' && <AdminTab token={token} currentUser={user} />}
+        {activeTab === 'admin' && user?.role === 'admin' && <AdminTab token={token} />}
       </div>
     </div>
   )
 }
 
 export default App
-
