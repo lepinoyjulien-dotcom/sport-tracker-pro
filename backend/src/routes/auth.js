@@ -4,6 +4,7 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
+const { sendWelcomeEmail } = require('../services/emailService');
 
 const prisma = new PrismaClient();
 
@@ -30,10 +31,19 @@ router.post('/register', async (req, res) => {
         name,
         email,
         password: hashedPassword,
-        role: 'user', // Default role
-        weight: 70 // Default weight
+        role: 'user',
+        weight: 70
       }
     });
+
+    // Send welcome email with credentials
+    try {
+      await sendWelcomeEmail(email, name, password);
+      console.log(`✅ Welcome email sent to ${email}`);
+    } catch (emailError) {
+      console.error('⚠️  Failed to send welcome email:', emailError);
+      // Don't fail registration if email fails
+    }
 
     // Generate JWT token
     const token = jwt.sign(
@@ -50,7 +60,7 @@ router.post('/register', async (req, res) => {
         name: user.name,
         email: user.email,
         weight: user.weight,
-        role: user.role // Include role in response
+        role: user.role
       }
     });
   } catch (error) {
@@ -101,7 +111,7 @@ router.post('/login', async (req, res) => {
         name: user.name,
         email: user.email,
         weight: user.weight,
-        role: user.role, // CRITICAL: Include role in response
+        role: user.role,
         createdAt: user.createdAt
       }
     });

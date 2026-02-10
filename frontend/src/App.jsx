@@ -3,9 +3,9 @@ import axios from 'axios'
 import CardioTab from './components/CardioTab'
 import MuscuTab from './components/MuscuTab'
 import WeightTab from './components/WeightTab'
-import StatsTab from './components/StatsTab'
-import AdminTab from './components/AdminTab'
-import ProfileTab from './components/ProfileTab'
+import StatsTab from './components/StatsTab-v2'
+import AdminTab from './components/AdminTab-v2'
+import ProfileTab from './components/ProfileTab-v2'
 import DateSelector from './components/DateSelector'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
@@ -135,13 +135,6 @@ function LoginForm({ onSuccess, onToggle }) {
             Pas de compte ? <span className="font-semibold">S'inscrire</span>
           </button>
         </div>
-
-        {/* Admin Login Hint */}
-        <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-xs text-blue-700 text-center">
-            💡 Compte admin : admin@sporttracker.com / admin
-          </p>
-        </div>
       </div>
     </div>
   )
@@ -247,19 +240,57 @@ function RegisterForm({ onSuccess, onToggle }) {
 function Dashboard({ token, user, onLogout, onUserUpdate }) {
   const [activeTab, setActiveTab] = useState('cardio')
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  
+  // Load visible tabs preferences
+  const [visibleTabs, setVisibleTabs] = useState({
+    cardio: true,
+    muscu: true,
+    weight: true
+  })
 
-  const tabs = [
-    { id: 'cardio', icon: '🏃', label: 'Cardio', color: 'from-red-500 to-pink-500' },
-    { id: 'muscu', icon: '💪', label: 'Muscu', color: 'from-blue-500 to-cyan-500' },
-    { id: 'weight', icon: '⚖️', label: 'Poids', color: 'from-green-500 to-emerald-500' },
-    { id: 'stats', icon: '📊', label: 'Stats', color: 'from-orange-500 to-yellow-500' },
-    { id: 'profile', icon: '👤', label: 'Profil', color: 'from-purple-500 to-pink-500' },
-  ]
+  useEffect(() => {
+    const saved = localStorage.getItem('visibleTabs')
+    if (saved) {
+      setVisibleTabs(JSON.parse(saved))
+    }
+  }, [])
 
-  // Ajouter l'onglet Admin si l'utilisateur est admin
-  if (user?.role === 'admin') {
-    tabs.push({ id: 'admin', icon: '⚙️', label: 'Admin', color: 'from-gray-700 to-gray-900' })
+  // Build tabs list based on visibility settings
+  const buildTabs = () => {
+    const tabs = []
+    
+    if (visibleTabs.cardio) {
+      tabs.push({ id: 'cardio', icon: '🏃', label: 'Cardio', color: 'from-red-500 to-pink-500' })
+    }
+    
+    if (visibleTabs.muscu) {
+      tabs.push({ id: 'muscu', icon: '💪', label: 'Muscu', color: 'from-blue-500 to-cyan-500' })
+    }
+    
+    if (visibleTabs.weight) {
+      tabs.push({ id: 'weight', icon: '⚖️', label: 'Poids', color: 'from-green-500 to-emerald-500' })
+    }
+    
+    // Always visible tabs
+    tabs.push({ id: 'stats', icon: '📊', label: 'Stats', color: 'from-orange-500 to-yellow-500' })
+    tabs.push({ id: 'profile', icon: '👤', label: 'Profil', color: 'from-purple-500 to-pink-500' })
+    
+    // Admin tab (always visible for admins)
+    if (user?.role === 'admin') {
+      tabs.push({ id: 'admin', icon: '⚙️', label: 'Admin', color: 'from-gray-700 to-gray-900' })
+    }
+    
+    return tabs
   }
+
+  const tabs = buildTabs()
+
+  // Set first visible tab as active if current tab is hidden
+  useEffect(() => {
+    if (!tabs.find(t => t.id === activeTab)) {
+      setActiveTab(tabs[0]?.id || 'stats')
+    }
+  }, [visibleTabs])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -324,9 +355,9 @@ function Dashboard({ token, user, onLogout, onUserUpdate }) {
         )}
 
         {/* Tab Content */}
-        {activeTab === 'cardio' && <CardioTab token={token} currentDate={selectedDate} />}
-        {activeTab === 'muscu' && <MuscuTab token={token} currentDate={selectedDate} />}
-        {activeTab === 'weight' && <WeightTab token={token} currentDate={selectedDate} />}
+        {activeTab === 'cardio' && visibleTabs.cardio && <CardioTab token={token} currentDate={selectedDate} />}
+        {activeTab === 'muscu' && visibleTabs.muscu && <MuscuTab token={token} currentDate={selectedDate} />}
+        {activeTab === 'weight' && visibleTabs.weight && <WeightTab token={token} currentDate={selectedDate} />}
         {activeTab === 'stats' && <StatsTab token={token} />}
         {activeTab === 'profile' && <ProfileTab token={token} user={user} onUserUpdate={onUserUpdate} />}
         {activeTab === 'admin' && user?.role === 'admin' && <AdminTab token={token} currentUser={user} />}

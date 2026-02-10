@@ -8,10 +8,18 @@ function AdminTab({ token, currentUser }) {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
+  
+  // Calorie settings
+  const [calorieSettings, setCalorieSettings] = useState({
+    cardio: { low: 4, medium: 7, high: 10 },
+    muscu: { perSet: 5 }
+  })
+  const [editingSettings, setEditingSettings] = useState(false)
 
   useEffect(() => {
     fetchUsers()
     fetchStats()
+    loadCalorieSettings()
   }, [])
 
   const fetchUsers = async () => {
@@ -36,6 +44,34 @@ function AdminTab({ token, currentUser }) {
       setStats(response.data)
     } catch (error) {
       console.error('Error fetching stats:', error)
+    }
+  }
+
+  const loadCalorieSettings = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/admin/calorie-settings`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (response.data) {
+        setCalorieSettings(response.data)
+      }
+    } catch (error) {
+      console.log('Using default calorie settings')
+    }
+  }
+
+  const saveCalorieSettings = async () => {
+    try {
+      await axios.post(
+        `${API_URL}/api/admin/calorie-settings`,
+        calorieSettings,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      setMessage('✅ Paramètres de calories sauvegardés')
+      setEditingSettings(false)
+      setTimeout(() => setMessage(''), 3000)
+    } catch (error) {
+      setMessage('❌ Erreur lors de la sauvegarde')
     }
   }
 
@@ -164,7 +200,144 @@ function AdminTab({ token, currentUser }) {
         </div>
       )}
 
-      {/* Users List */}
+      {/* Calorie Calculation Settings */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Paramètres de calcul des calories
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Valeurs MET utilisées pour calculer les calories brûlées
+            </p>
+          </div>
+          {!editingSettings ? (
+            <button
+              onClick={() => setEditingSettings(true)}
+              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
+            >
+              Modifier
+            </button>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                onClick={saveCalorieSettings}
+                className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors"
+              >
+                Sauvegarder
+              </button>
+              <button
+                onClick={() => {
+                  setEditingSettings(false)
+                  loadCalorieSettings()
+                }}
+                className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg font-medium transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Cardio Settings */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <span className="text-2xl">🏃</span> Cardio (valeurs MET)
+              </h3>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Intensité faible
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={calorieSettings.cardio.low}
+                  onChange={(e) => setCalorieSettings({
+                    ...calorieSettings,
+                    cardio: { ...calorieSettings.cardio, low: parseFloat(e.target.value) }
+                  })}
+                  disabled={!editingSettings}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Intensité moyenne
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={calorieSettings.cardio.medium}
+                  onChange={(e) => setCalorieSettings({
+                    ...calorieSettings,
+                    cardio: { ...calorieSettings.cardio, medium: parseFloat(e.target.value) }
+                  })}
+                  disabled={!editingSettings}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Intensité haute
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={calorieSettings.cardio.high}
+                  onChange={(e) => setCalorieSettings({
+                    ...calorieSettings,
+                    cardio: { ...calorieSettings.cardio, high: parseFloat(e.target.value) }
+                  })}
+                  disabled={!editingSettings}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-100"
+                />
+              </div>
+            </div>
+
+            {/* Muscu Settings */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <span className="text-2xl">💪</span> Musculation
+              </h3>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Calories par série
+                </label>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={calorieSettings.muscu.perSet}
+                  onChange={(e) => setCalorieSettings({
+                    ...calorieSettings,
+                    muscu: { perSet: parseFloat(e.target.value) }
+                  })}
+                  disabled={!editingSettings}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-100"
+                />
+              </div>
+
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  <strong>Formule cardio :</strong><br/>
+                  Calories = (MET × poids × minutes) / 60
+                </p>
+                <p className="text-sm text-blue-700 mt-2">
+                  <strong>Formule muscu :</strong><br/>
+                  Calories = séries × {calorieSettings.muscu.perSet}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Users List - Simplified */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="p-6 border-b border-gray-100">
           <h2 className="text-lg font-semibold text-gray-900">
@@ -201,25 +374,8 @@ function AdminTab({ token, currentUser }) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3 text-sm">
-                    <div>
-                      <span className="text-gray-500">Poids :</span>
-                      <span className="ml-1 font-medium">{user.weight} kg</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Inscrit :</span>
-                      <span className="ml-1 font-medium">
-                        {new Date(user.createdAt).toLocaleDateString('fr-FR')}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Cardio :</span>
-                      <span className="ml-1 font-medium">{user._count?.cardioActivities || 0}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Muscu :</span>
-                      <span className="ml-1 font-medium">{user._count?.muscuActivities || 0}</span>
-                    </div>
+                  <div className="text-sm text-gray-500">
+                    Inscrit le {new Date(user.createdAt).toLocaleDateString('fr-FR')}
                   </div>
                 </div>
 
@@ -266,6 +422,7 @@ function AdminTab({ token, currentUser }) {
               <li>Promouvoir un utilisateur en administrateur</li>
               <li>Révoquer les privilèges d'administrateur</li>
               <li>Supprimer des comptes utilisateurs (et toutes leurs données)</li>
+              <li>Configurer les paramètres de calcul des calories</li>
               <li>Voir les statistiques globales de la plateforme</li>
             </ul>
           </div>

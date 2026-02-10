@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import ExerciseManager from './ExerciseManager'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
@@ -12,6 +13,21 @@ function ProfileTab({ token, user, onUserUpdate }) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+
+  // Tab visibility settings
+  const [visibleTabs, setVisibleTabs] = useState({
+    cardio: true,
+    muscu: true,
+    weight: true
+  })
+
+  useEffect(() => {
+    // Load saved preferences
+    const saved = localStorage.getItem('visibleTabs')
+    if (saved) {
+      setVisibleTabs(JSON.parse(saved))
+    }
+  }, [])
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault()
@@ -70,6 +86,14 @@ function ProfileTab({ token, user, onUserUpdate }) {
     }
   }
 
+  const handleToggleTab = (tab) => {
+    const newVisibleTabs = { ...visibleTabs, [tab]: !visibleTabs[tab] }
+    setVisibleTabs(newVisibleTabs)
+    localStorage.setItem('visibleTabs', JSON.stringify(newVisibleTabs))
+    setMessage('✅ Préférences sauvegardées - Rechargez la page pour voir les changements')
+    setTimeout(() => setMessage(''), 5000)
+  }
+
   return (
     <div className="space-y-6">
       {/* Profile Header */}
@@ -106,6 +130,77 @@ function ProfileTab({ token, user, onUserUpdate }) {
           {message}
         </div>
       )}
+
+      {/* Tab Visibility Settings */}
+      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Affichage des onglets
+        </h3>
+        
+        <p className="text-sm text-gray-600 mb-4">
+          Choisissez les onglets que vous souhaitez afficher dans votre interface.
+          Les onglets Profil, Stats et Admin restent toujours visibles.
+        </p>
+
+        <div className="space-y-3">
+          <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🏃</span>
+              <div>
+                <div className="font-medium text-gray-900">Cardio</div>
+                <div className="text-sm text-gray-500">Activités cardiovasculaires</div>
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={visibleTabs.cardio}
+              onChange={() => handleToggleTab('cardio')}
+              className="w-5 h-5 text-red-600 rounded focus:ring-2 focus:ring-red-500"
+            />
+          </label>
+
+          <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">💪</span>
+              <div>
+                <div className="font-medium text-gray-900">Musculation</div>
+                <div className="text-sm text-gray-500">Exercices de musculation</div>
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={visibleTabs.muscu}
+              onChange={() => handleToggleTab('muscu')}
+              className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+            />
+          </label>
+
+          <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">⚖️</span>
+              <div>
+                <div className="font-medium text-gray-900">Poids</div>
+                <div className="text-sm text-gray-500">Suivi du poids et composition</div>
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={visibleTabs.weight}
+              onChange={() => handleToggleTab('weight')}
+              className="w-5 h-5 text-green-600 rounded focus:ring-2 focus:ring-green-500"
+            />
+          </label>
+        </div>
+
+        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-sm text-yellow-800">
+            ⚠️ Rechargez la page (F5) après avoir modifié vos préférences pour voir les changements.
+          </p>
+        </div>
+      </div>
+
+      {/* Exercise Manager */}
+      <ExerciseManager token={token} />
 
       {/* Edit Profile */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
@@ -248,26 +343,6 @@ function ProfileTab({ token, user, onUserUpdate }) {
             </div>
           )}
         </div>
-      </div>
-
-      {/* Danger Zone */}
-      <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-red-900 mb-2">Zone dangereuse</h3>
-        <p className="text-sm text-red-700 mb-4">
-          La suppression de votre compte est irréversible et supprimera toutes vos données.
-        </p>
-        <button
-          onClick={() => {
-            if (confirm('⚠️ Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est IRRÉVERSIBLE !')) {
-              if (confirm('⚠️ DERNIÈRE CONFIRMATION : Toutes vos données seront perdues définitivement !')) {
-                alert('Fonctionnalité de suppression de compte à implémenter')
-              }
-            }
-          }}
-          className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors"
-        >
-          Supprimer mon compte
-        </button>
       </div>
     </div>
   )
