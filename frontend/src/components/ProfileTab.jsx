@@ -22,10 +22,13 @@ function ProfileTab({ token, user, onUserUpdate }) {
   })
 
   useEffect(() => {
-    // Load saved preferences
     const saved = localStorage.getItem('visibleTabs')
     if (saved) {
-      setVisibleTabs(JSON.parse(saved))
+      try {
+        setVisibleTabs(JSON.parse(saved))
+      } catch (e) {
+        console.error('Error parsing visibleTabs:', e)
+      }
     }
   }, [])
 
@@ -213,6 +216,7 @@ function ProfileTab({ token, user, onUserUpdate }) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              autoComplete="name"
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
               required
             />
@@ -224,6 +228,7 @@ function ProfileTab({ token, user, onUserUpdate }) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
               required
             />
@@ -267,6 +272,7 @@ function ProfileTab({ token, user, onUserUpdate }) {
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
+              autoComplete="current-password"
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
               required
             />
@@ -280,6 +286,7 @@ function ProfileTab({ token, user, onUserUpdate }) {
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
+              autoComplete="new-password"
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
               minLength={6}
               required
@@ -295,6 +302,7 @@ function ProfileTab({ token, user, onUserUpdate }) {
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
               minLength={6}
               required
@@ -319,11 +327,11 @@ function ProfileTab({ token, user, onUserUpdate }) {
           <div className="flex justify-between">
             <span className="text-gray-600">Membre depuis</span>
             <span className="font-medium">
-              {new Date(user?.createdAt).toLocaleDateString('fr-FR', {
+              {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('fr-FR', {
                 day: 'numeric',
                 month: 'long',
                 year: 'numeric'
-              })}
+              }) : '-'}
             </span>
           </div>
           
