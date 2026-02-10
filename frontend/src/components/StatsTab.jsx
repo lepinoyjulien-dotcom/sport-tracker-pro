@@ -27,7 +27,7 @@ function StatsTab({ token }) {
   }, [period])
 
   useEffect(() => {
-    if (startDate && endDate) {
+    if (startDate && endDate && token) {
       fetchAllData()
     }
   }, [startDate, endDate, token])
@@ -39,13 +39,13 @@ function StatsTab({ token }) {
       const [cardio, muscu, weight] = await Promise.all([
         axios.get(`${API_URL}/api/cardio`, {
           headers: { Authorization: `Bearer ${token}` }
-        }),
+        }).catch(() => ({ data: [] })),
         axios.get(`${API_URL}/api/muscu`, {
           headers: { Authorization: `Bearer ${token}` }
-        }),
+        }).catch(() => ({ data: [] })),
         axios.get(`${API_URL}/api/weight`, {
           headers: { Authorization: `Bearer ${token}` }
-        })
+        }).catch(() => ({ data: [] }))
       ])
 
       const cardioArray = Array.isArray(cardio.data) ? cardio.data : []
@@ -56,11 +56,13 @@ function StatsTab({ token }) {
       const end = new Date(endDate)
       
       const filteredCardio = cardioArray.filter(a => {
+        if (!a || !a.date) return false
         const date = new Date(a.date)
         return date >= start && date <= end
       })
       
       const filteredMuscu = muscuArray.filter(a => {
+        if (!a || !a.date) return false
         const date = new Date(a.date)
         return date >= start && date <= end
       })
@@ -69,8 +71,18 @@ function StatsTab({ token }) {
       setMuscuData(filteredMuscu)
       setWeightData(weightArray)
 
-      const cardioExercises = [...new Set(filteredCardio.map(a => a.exercise?.name).filter(Boolean))]
-      const muscuExercises = [...new Set(filteredMuscu.map(a => a.exercise?.name).filter(Boolean))]
+      const cardioExercises = [...new Set(
+        filteredCardio
+          .map(a => a.exercise?.name)
+          .filter(name => name && typeof name === 'string')
+      )]
+      
+      const muscuExercises = [...new Set(
+        filteredMuscu
+          .map(a => a.exercise?.name)
+          .filter(name => name && typeof name === 'string')
+      )]
+      
       setExercises({ cardio: cardioExercises, muscu: muscuExercises })
     } catch (error) {
       console.error('Error fetching stats:', error)
@@ -106,10 +118,10 @@ function StatsTab({ token }) {
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
           <div className="text-4xl mb-4">⚠️</div>
-          <div className="text-red-600">{error}</div>
+          <div className="text-red-600 mb-4">{error}</div>
           <button 
             onClick={fetchAllData}
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg"
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
           >
             Réessayer
           </button>
@@ -196,6 +208,10 @@ function StatsTab({ token }) {
 }
 
 function CaloriesMode({ cardioData, muscuData, startDate, endDate }) {
+  if (!Array.isArray(cardioData) || !Array.isArray(muscuData)) {
+    return <div className="text-center py-8 text-gray-500">Données invalides</div>
+  }
+
   const getDailyData = () => {
     const dailyMap = {}
     const start = new Date(startDate)
@@ -207,13 +223,15 @@ function CaloriesMode({ cardioData, muscuData, startDate, endDate }) {
     }
     
     cardioData.forEach(a => {
-      const date = a.date
-      if (dailyMap[date]) dailyMap[date].cardio += (a.calories || 0)
+      if (a && a.date && dailyMap[a.date]) {
+        dailyMap[a.date].cardio += (a.calories || 0)
+      }
     })
     
     muscuData.forEach(a => {
-      const date = a.date
-      if (dailyMap[date]) dailyMap[date].muscu += (a.calories || 0)
+      if (a && a.date && dailyMap[a.date]) {
+        dailyMap[a.date].muscu += (a.calories || 0)
+      }
     })
     
     Object.keys(dailyMap).forEach(date => {
@@ -225,35 +243,40 @@ function CaloriesMode({ cardioData, muscuData, startDate, endDate }) {
 
   const dailyData = getDailyData()
   const dates = Object.keys(dailyData).sort()
-  const totalCardio = cardioData.reduce((sum, a) => sum + (a.calories || 0), 0)
-  const totalMuscu = muscuData.reduce((sum, a) => sum + (a.calories || 0), 0)
+  const totalCardio = cardioData.reduce((sum, a) => sum + (a?.calories || 0), 0)
+  const totalMuscu = muscuData.reduce((sum, a) => sum + (a?.calories || 0), 0)
   const totalCalories = totalCardio + totalMuscu
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard icon="🔥" value={Math.round(totalCalories)} label="Total" color="red" />
-        <StatCard icon="🏃" value={Math.round(totalCardio)} label="Cardio" color="blue" />
-        <StatCard icon="💪" value={Math.round(totalMuscu)} label="Muscu" color="purple" />
+        <StatCard icon="🔥" value={Math.round(totalCalories)} label="Total calories" />
+        <StatCard icon="🏃" value={Math.round(totalCardio)} label="Cardio" />
+        <StatCard icon="💪" value={Math.round(totalMuscu)} label="Muscu" />
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Évolution jour par jour</h3>
-        <DailyLineChart 
-          dates={dates}
-          data={dates.map(date => dailyData[date].total)}
-          color="#ef4444"
-          label="Calories"
-        />
-      </div>
+      {dates.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Évolution jour par jour</h3>
+          <SimpleBarChart 
+            dates={dates}
+            data={dates.map(date => dailyData[date].total)}
+            label="Calories"
+          />
+        </div>
+      )}
     </div>
   )
 }
 
 function CardioMode({ cardioData, exercises, selectedExercise, setSelectedExercise, startDate, endDate }) {
+  if (!Array.isArray(cardioData) || !Array.isArray(exercises)) {
+    return <div className="text-center py-8 text-gray-500">Données invalides</div>
+  }
+
   const filteredData = selectedExercise === 'all' 
     ? cardioData 
-    : cardioData.filter(a => a.exercise?.name === selectedExercise)
+    : cardioData.filter(a => a?.exercise?.name === selectedExercise)
 
   const getDailyData = () => {
     const dailyMap = {}
@@ -266,8 +289,9 @@ function CardioMode({ cardioData, exercises, selectedExercise, setSelectedExerci
     }
     
     filteredData.forEach(a => {
-      const date = a.date
-      if (dailyMap[date] !== undefined) dailyMap[date] += (a.minutes || 0)
+      if (a && a.date && dailyMap[a.date] !== undefined) {
+        dailyMap[a.date] += (a.minutes || 0)
+      }
     })
     
     return dailyMap
@@ -275,14 +299,14 @@ function CardioMode({ cardioData, exercises, selectedExercise, setSelectedExerci
 
   const dailyData = getDailyData()
   const dates = Object.keys(dailyData).sort()
-  const totalMinutes = filteredData.reduce((sum, a) => sum + (a.minutes || 0), 0)
-  const totalCalories = filteredData.reduce((sum, a) => sum + (a.calories || 0), 0)
+  const totalMinutes = filteredData.reduce((sum, a) => sum + (a?.minutes || 0), 0)
+  const totalCalories = filteredData.reduce((sum, a) => sum + (a?.calories || 0), 0)
 
   return (
     <div className="space-y-6">
       {exercises.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Exercice</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Filtrer par exercice</label>
           <select
             value={selectedExercise}
             onChange={(e) => setSelectedExercise(e.target.value)}
@@ -297,30 +321,35 @@ function CardioMode({ cardioData, exercises, selectedExercise, setSelectedExerci
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard icon="🏃" value={filteredData.length} label="Activités" color="blue" />
-        <StatCard icon="⏱️" value={`${totalMinutes} min`} label="Durée totale" color="cyan" />
-        <StatCard icon="🔥" value={Math.round(totalCalories)} label="Calories" color="orange" />
+        <StatCard icon="🏃" value={filteredData.length} label="Activités" />
+        <StatCard icon="⏱️" value={`${totalMinutes} min`} label="Durée totale" />
+        <StatCard icon="🔥" value={Math.round(totalCalories)} label="Calories" />
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Évolution - {selectedExercise === 'all' ? 'Tous' : selectedExercise}
-        </h3>
-        <DailyLineChart 
-          dates={dates}
-          data={dates.map(date => dailyData[date])}
-          color="#3b82f6"
-          label="Minutes"
-        />
-      </div>
+      {dates.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Évolution - {selectedExercise === 'all' ? 'Tous' : selectedExercise}
+          </h3>
+          <SimpleBarChart 
+            dates={dates}
+            data={dates.map(date => dailyData[date])}
+            label="Minutes"
+          />
+        </div>
+      )}
     </div>
   )
 }
 
 function MuscuMode({ muscuData, exercises, selectedExercise, setSelectedExercise, startDate, endDate }) {
+  if (!Array.isArray(muscuData) || !Array.isArray(exercises)) {
+    return <div className="text-center py-8 text-gray-500">Données invalides</div>
+  }
+
   const filteredData = selectedExercise === 'all' 
     ? muscuData 
-    : muscuData.filter(a => a.exercise?.name === selectedExercise)
+    : muscuData.filter(a => a?.exercise?.name === selectedExercise)
 
   const getDailyVolume = () => {
     const dailyMap = {}
@@ -333,9 +362,9 @@ function MuscuMode({ muscuData, exercises, selectedExercise, setSelectedExercise
     }
     
     filteredData.forEach(a => {
-      const date = a.date
-      if (dailyMap[date] !== undefined) {
-        dailyMap[date] += ((a.sets || 0) * (a.reps || 0) * (a.weight || 0))
+      if (a && a.date && dailyMap[a.date] !== undefined) {
+        const volume = (a.sets || 0) * (a.reps || 0) * (a.weight || 0)
+        dailyMap[a.date] += volume
       }
     })
     
@@ -344,15 +373,18 @@ function MuscuMode({ muscuData, exercises, selectedExercise, setSelectedExercise
 
   const dailyData = getDailyVolume()
   const dates = Object.keys(dailyData).sort()
-  const totalVolume = filteredData.reduce((sum, a) => sum + ((a.sets || 0) * (a.reps || 0) * (a.weight || 0)), 0)
-  const totalSets = filteredData.reduce((sum, a) => sum + (a.sets || 0), 0)
-  const totalCalories = filteredData.reduce((sum, a) => sum + (a.calories || 0), 0)
+  const totalVolume = filteredData.reduce((sum, a) => {
+    const volume = (a?.sets || 0) * (a?.reps || 0) * (a?.weight || 0)
+    return sum + volume
+  }, 0)
+  const totalSets = filteredData.reduce((sum, a) => sum + (a?.sets || 0), 0)
+  const totalCalories = filteredData.reduce((sum, a) => sum + (a?.calories || 0), 0)
 
   return (
     <div className="space-y-6">
       {exercises.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Exercice</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Filtrer par exercice</label>
           <select
             value={selectedExercise}
             onChange={(e) => setSelectedExercise(e.target.value)}
@@ -367,30 +399,36 @@ function MuscuMode({ muscuData, exercises, selectedExercise, setSelectedExercise
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard icon="💪" value={filteredData.length} label="Exercices" color="purple" />
-        <StatCard icon="⚡" value={totalSets} label="Séries" color="pink" />
-        <StatCard icon="🏋️" value={`${Math.round(totalVolume)} kg`} label="Volume" color="indigo" />
-        <StatCard icon="🔥" value={Math.round(totalCalories)} label="Calories" color="orange" />
+        <StatCard icon="💪" value={filteredData.length} label="Exercices" />
+        <StatCard icon="⚡" value={totalSets} label="Séries" />
+        <StatCard icon="🏋️" value={`${Math.round(totalVolume)} kg`} label="Volume" />
+        <StatCard icon="🔥" value={Math.round(totalCalories)} label="Calories" />
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Évolution du volume - {selectedExercise === 'all' ? 'Tous' : selectedExercise}
-        </h3>
-        <DailyLineChart 
-          dates={dates}
-          data={dates.map(date => dailyData[date])}
-          color="#a855f7"
-          label="Volume (kg)"
-        />
-      </div>
+      {dates.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Évolution du volume - {selectedExercise === 'all' ? 'Tous' : selectedExercise}
+          </h3>
+          <SimpleBarChart 
+            dates={dates}
+            data={dates.map(date => dailyData[date])}
+            label="Volume (kg)"
+          />
+        </div>
+      )}
     </div>
   )
 }
 
 function WeightMode({ weightData, startDate, endDate }) {
+  if (!Array.isArray(weightData)) {
+    return <div className="text-center py-8 text-gray-500">Données invalides</div>
+  }
+
   const filteredData = weightData
     .filter(w => {
+      if (!w || !w.date) return false
       const wDate = new Date(w.date)
       return wDate >= new Date(startDate) && wDate <= new Date(endDate)
     })
@@ -398,23 +436,24 @@ function WeightMode({ weightData, startDate, endDate }) {
 
   const latest = weightData[0]
   const first = filteredData[filteredData.length - 1]
-  const weightDelta = latest && first ? (latest.weight - first.weight).toFixed(1) : 0
+  const weightDelta = (latest && first && latest.weight && first.weight) 
+    ? (latest.weight - first.weight).toFixed(1) 
+    : 0
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard icon="⚖️" value={latest?.weight || '-'} label="Poids actuel (kg)" color="green" />
-        <StatCard icon="📈" value={`${weightDelta > 0 ? '+' : ''}${weightDelta} kg`} label="Évolution" color="emerald" />
-        <StatCard icon="📊" value={filteredData.length} label="Mesures" color="teal" />
+        <StatCard icon="⚖️" value={latest?.weight || '-'} label="Poids actuel (kg)" />
+        <StatCard icon="📈" value={`${weightDelta > 0 ? '+' : ''}${weightDelta} kg`} label="Évolution" />
+        <StatCard icon="📊" value={filteredData.length} label="Mesures" />
       </div>
 
       {filteredData.length > 1 && (
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Évolution du poids</h3>
-          <DailyLineChart 
+          <SimpleBarChart 
             dates={filteredData.map(d => d.date)}
             data={filteredData.map(d => d.weight)}
-            color="#10b981"
             label="Poids (kg)"
           />
         </div>
@@ -423,31 +462,18 @@ function WeightMode({ weightData, startDate, endDate }) {
   )
 }
 
-function StatCard({ icon, value, label, color }) {
-  const colors = {
-    red: 'from-red-500 to-orange-500',
-    blue: 'from-blue-500 to-cyan-500',
-    cyan: 'from-cyan-500 to-blue-500',
-    purple: 'from-purple-500 to-pink-500',
-    pink: 'from-pink-500 to-rose-500',
-    indigo: 'from-indigo-500 to-purple-500',
-    orange: 'from-orange-500 to-red-500',
-    green: 'from-green-500 to-emerald-500',
-    emerald: 'from-emerald-500 to-teal-500',
-    teal: 'from-teal-500 to-cyan-500'
-  }
-
+function StatCard({ icon, value, label }) {
   return (
-    <div className={`bg-gradient-to-br ${colors[color] || colors.blue} rounded-xl shadow-sm p-6 text-white`}>
+    <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
       <div className="text-3xl mb-2">{icon}</div>
-      <div className="text-3xl font-bold">{value}</div>
-      <div className="text-sm opacity-90">{label}</div>
+      <div className="text-2xl font-bold text-gray-900">{value}</div>
+      <div className="text-sm text-gray-500">{label}</div>
     </div>
   )
 }
 
-function DailyLineChart({ dates, data, color, label }) {
-  if (!dates || dates.length === 0 || !data || data.length === 0) {
+function SimpleBarChart({ dates, data, label }) {
+  if (!Array.isArray(dates) || !Array.isArray(data) || dates.length === 0 || data.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
         Aucune donnée pour la période sélectionnée
@@ -455,75 +481,34 @@ function DailyLineChart({ dates, data, color, label }) {
     )
   }
 
-  const maxValue = Math.max(...data, 1)
-  const minValue = Math.min(...data, 0)
-  const range = maxValue - minValue || 1
+  const maxValue = Math.max(...data.filter(d => typeof d === 'number'), 1)
+  const showDates = dates.length <= 14
 
   return (
-    <div>
-      <div className="relative h-64 border border-gray-200 rounded-lg p-4">
-        <svg className="w-full h-full" viewBox="0 0 800 200" preserveAspectRatio="none">
-          {/* Grid lines */}
-          {[0, 1, 2, 3, 4].map(i => (
-            <line 
-              key={i} 
-              x1="0" 
-              y1={i * 50} 
-              x2="800" 
-              y2={i * 50} 
-              stroke="#e5e7eb" 
-              strokeWidth="1" 
-            />
-          ))}
-
-          {/* Line */}
-          {data.length > 1 && (
-            <polyline
-              points={data.map((d, i) => {
-                const x = (i / (data.length - 1)) * 800
-                const y = 190 - ((d - minValue) / range) * 170
-                return `${x},${y}`
-              }).join(' ')}
-              fill="none"
-              stroke={color}
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          )}
-
-          {/* Points */}
-          {data.map((d, i) => {
-            const x = data.length === 1 ? 400 : (i / (data.length - 1)) * 800
-            const y = 190 - ((d - minValue) / range) * 170
-            return (
-              <circle 
-                key={i} 
-                cx={x} 
-                cy={y} 
-                r="5" 
-                fill={color}
+    <div className="space-y-4">
+      <div className="flex items-end gap-1 h-48">
+        {data.map((value, i) => {
+          const height = maxValue > 0 ? (value / maxValue) * 100 : 0
+          return (
+            <div key={i} className="flex-1 flex flex-col items-center gap-2">
+              <div 
+                className="w-full bg-gradient-to-t from-purple-600 to-purple-400 rounded-t transition-all hover:opacity-80"
+                style={{ height: `${height}%`, minHeight: value > 0 ? '4px' : '0' }}
+                title={`${dates[i]}: ${value} ${label}`}
               />
-            )
-          })}
-        </svg>
-      </div>
-      
-      <div className="flex justify-between mt-4 text-xs text-gray-500 overflow-x-auto gap-2">
-        {dates.map((date, i) => {
-          const showLabel = dates.length <= 14 || i % Math.ceil(dates.length / 10) === 0 || i === dates.length - 1
-          return showLabel ? (
-            <span key={i} className="whitespace-nowrap">
-              {new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
-            </span>
-          ) : null
+              {showDates && (
+                <div className="text-xs text-gray-500 transform -rotate-45 origin-top-left whitespace-nowrap">
+                  {new Date(dates[i]).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                </div>
+              )}
+            </div>
+          )
         })}
       </div>
-
-      <div className="mt-2 text-center text-sm text-gray-600">
-        {label}: Min <span className="font-semibold">{minValue.toFixed(1)}</span> | 
-        Max <span className="font-semibold">{maxValue.toFixed(1)}</span> | 
-        Moy <span className="font-semibold">{(data.reduce((a,b) => a+b, 0) / data.length).toFixed(1)}</span>
+      
+      <div className="text-center text-sm text-gray-600">
+        {label}: Max <span className="font-semibold">{maxValue.toFixed(1)}</span> | 
+        Total <span className="font-semibold">{data.reduce((a, b) => a + b, 0).toFixed(1)}</span>
       </div>
     </div>
   )
