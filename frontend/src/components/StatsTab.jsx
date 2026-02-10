@@ -230,7 +230,7 @@ function CaloriesMode({ cardioData, muscuData, startDate, endDate }) {
   }
 
   const dailyData = getDailyData()
-  const dates = Object.keys(dailyMap).sort()
+  const dates = Object.keys(dailyData).sort()
   const totalCardio = cardioData.reduce((sum, a) => sum + (a.calories || 0), 0)
   const totalMuscu = muscuData.reduce((sum, a) => sum + (a.calories || 0), 0)
   const totalCalories = totalCardio + totalMuscu
