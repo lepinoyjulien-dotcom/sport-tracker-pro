@@ -17,8 +17,8 @@ router.get('/', async (req, res) => {
         userId: req.userId,
         ...(startDate && endDate && {
           date: {
-            gte: new Date(startDate),
-            lte: new Date(endDate),
+            gte: startDate,
+            lte: endDate,
           },
         }),
       },
@@ -57,7 +57,7 @@ router.post('/', async (req, res) => {
     
     const activity = await prisma.cardioActivity.create({
       data: {
-        date: new Date(date),
+        date: date,
         minutes,
         intensity,
         calories,
