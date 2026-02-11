@@ -127,4 +127,3 @@ L'équipe Sport Tracker Pro
 module.exports = {
   sendWelcomeEmail
 }
-}
