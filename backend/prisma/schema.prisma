@@ -1,4 +1,5 @@
-// Updated Prisma Schema with Role System
+// backend/prisma/schema.prisma
+// Schéma Prisma complet pour Sport Tracker Pro V2
 
 generator client {
   provider = "prisma-client-js"
@@ -9,81 +10,95 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================
+// MODÈLE USER
+// ============================================
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  weight    Float    @default(70.0)
-  role      String   @default("user") // "user" or "admin"
-  lastLogin DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id       String   @id @default(cuid())
+  email    String   @unique
+  password String
+  name     String
+  weight   Float    @default(70)
+  role     String   @default("user")
+  
+  // Relations
   cardioActivities CardioActivity[]
   muscuActivities  MuscuActivity[]
   weightEntries    WeightEntry[]
   exercises        Exercise[]
-
-  @@index([role])
+  
+  @@map("User")
 }
 
+// ============================================
+// MODÈLE EXERCISE
+// ============================================
 model Exercise {
-  id     String @id @default(uuid())
+  id     String  @id @default(cuid())
   name   String
-  type   String // "cardio" or "muscu"
-  userId String
-
-  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type   String  // 'cardio' ou 'muscu'
+  userId String?
+  
+  // Relations
+  user             User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
   cardioActivities CardioActivity[]
   muscuActivities  MuscuActivity[]
-
-  @@unique([userId, name, type])
+  
+  @@map("Exercise")
 }
 
+// ============================================
+// MODÈLE CARDIO ACTIVITY
+// ============================================
 model CardioActivity {
-  id         String   @id @default(uuid())
-  date       DateTime @db.Date
+  id         String  @id @default(cuid())
+  userId     String
+  exerciseId String
+  date       String
   minutes    Int
   intensity  String
-  calories   Int
-  userId     String
-  exerciseId String
-  createdAt  DateTime @default(now())
-
+  calories   Float
+  
+  // Relations
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-
-  @@index([userId, date])
+  exercise Exercise @relation(fields: [exerciseId], references: [id])
+  
+  @@map("CardioActivity")
 }
 
+// ============================================
+// MODÈLE MUSCU ACTIVITY
+// ============================================
 model MuscuActivity {
-  id         String   @id @default(uuid())
-  date       DateTime @db.Date
+  id         String  @id @default(cuid())
+  userId     String
+  exerciseId String
+  date       String
   sets       Int
   reps       Int
-  weight     Float    @default(0)
-  calories   Int
-  userId     String
-  exerciseId String
-  createdAt  DateTime @default(now())
-
+  weight     Float
+  calories   Float
+  
+  // Relations
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-
-  @@index([userId, date])
+  exercise Exercise @relation(fields: [exerciseId], references: [id])
+  
+  @@map("MuscuActivity")
 }
 
+// ============================================
+// MODÈLE WEIGHT ENTRY
+// ============================================
 model WeightEntry {
-  id         String   @id @default(uuid())
-  date       DateTime @db.Date
-  weight     Float
-  muscleMass Float?
-  bodyFat    Float?
+  id         String  @id @default(cuid())
   userId     String
-  createdAt  DateTime @default(now())
-
+  date       String
+  weight     Float
+  bodyFat    Float?
+  muscleMass Float?
+  
+  // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, date])
+  
+  @@map("WeightEntry")
 }

@@ -1,5 +1,5 @@
 // backend/src/routes/exercises.js
-// Routes pour la gestion des exercices personnalisés
+// Routes CRUD pour exercices - Compatible avec structure Prisma existante
 
 const express = require('express');
 const router = express.Router();
@@ -16,14 +16,14 @@ router.get('/', async (req, res) => {
   try {
     const { type } = req.query;
     
-    // Récupérer les exercices de l'utilisateur + les exercices par défaut
+    // Récupérer exercices personnels + défaut
     const exercises = await prisma.exercise.findMany({
       where: {
         OR: [
           { userId: req.userId },  // Exercices personnels
-          { userId: null }         // Exercices par défaut (système)
+          { userId: null }         // Exercices par défaut
         ],
-        ...(type && { type })      // Filtrer par type si fourni
+        ...(type && { type })
       },
       orderBy: { name: 'asc' }
     });
@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/exercises - Créer un nouvel exercice
+// POST /api/exercises - Créer un exercice
 router.post('/', async (req, res) => {
   try {
     const { name, type } = req.body;
@@ -49,7 +49,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Le type doit être cardio ou muscu' });
     }
     
-    // Vérifier si l'exercice existe déjà pour cet utilisateur
+    // Vérifier si existe déjà
     const existing = await prisma.exercise.findFirst({
       where: {
         name,
@@ -62,7 +62,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Cet exercice existe déjà' });
     }
     
-    // Créer l'exercice
+    // Créer
     const exercise = await prisma.exercise.create({
       data: {
         name,
@@ -97,14 +97,12 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Exercice non trouvé' });
     }
     
-    // Récupérer l'utilisateur pour vérifier son rôle
+    // Récupérer l'utilisateur
     const user = await prisma.user.findUnique({
       where: { id: req.userId }
     });
     
-    // Vérifier les permissions
-    // Un utilisateur peut modifier ses propres exercices
-    // Un admin peut modifier tous les exercices
+    // Vérifier permissions
     const canModify = 
       exercise.userId === req.userId ||  // Ses propres exercices
       user.role === 'admin';              // Admin peut tout modifier
@@ -113,7 +111,7 @@ router.put('/:id', async (req, res) => {
       return res.status(403).json({ error: 'Non autorisé à modifier cet exercice' });
     }
     
-    // Mettre à jour l'exercice
+    // Mettre à jour
     const updated = await prisma.exercise.update({
       where: { id },
       data: { name }
@@ -140,12 +138,12 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Exercice non trouvé' });
     }
     
-    // Récupérer l'utilisateur pour vérifier son rôle
+    // Récupérer l'utilisateur
     const user = await prisma.user.findUnique({
       where: { id: req.userId }
     });
     
-    // Vérifier les permissions
+    // Vérifier permissions
     const canDelete = 
       exercise.userId === req.userId ||  // Ses propres exercices
       user.role === 'admin';              // Admin peut tout supprimer
@@ -154,7 +152,7 @@ router.delete('/:id', async (req, res) => {
       return res.status(403).json({ error: 'Non autorisé à supprimer cet exercice' });
     }
     
-    // Supprimer l'exercice
+    // Supprimer
     await prisma.exercise.delete({
       where: { id }
     });
