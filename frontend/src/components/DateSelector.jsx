@@ -3,135 +3,149 @@ import { useState } from 'react'
 function DateSelector({ selectedDate, onDateChange }) {
   const [showCalendar, setShowCalendar] = useState(false)
 
-  const formatDateDisplay = (dateString) => {
-    const date = new Date(dateString)
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Date invalide'
+    
+    try {
+      const date = new Date(dateString + 'T00:00:00')
+      if (isNaN(date.getTime())) return 'Date invalide'
+      
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      const yesterday = new Date(today)
+      yesterday.setDate(yesterday.getDate() - 1)
+      
+      const selectedDateObj = new Date(dateString + 'T00:00:00')
+      selectedDateObj.setHours(0, 0, 0, 0)
+      
+      if (selectedDateObj.getTime() === today.getTime()) {
+        return "Aujourd'hui"
+      }
+      if (selectedDateObj.getTime() === yesterday.getTime()) {
+        return 'Hier'
+      }
+      
+      return date.toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long'
+      })
+    } catch (error) {
+      return 'Date invalide'
+    }
+  }
+
+  const handleDateChange = (e) => {
+    const newDate = e.target.value
+    if (newDate && newDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      onDateChange(newDate)
+      setShowCalendar(false)
+    }
+  }
+
+  const handleToday = () => {
     const today = new Date()
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-
-    if (dateString === today.toISOString().split('T')[0]) {
-      return "Aujourd'hui"
-    }
-    if (dateString === yesterday.toISOString().split('T')[0]) {
-      return 'Hier'
-    }
-    return date.toLocaleDateString('fr-FR', { 
-      weekday: 'long', 
-      day: 'numeric', 
-      month: 'long' 
-    })
-  }
-
-  const navigateDate = (days) => {
-    const date = new Date(selectedDate)
-    date.setDate(date.getDate() + days)
-    onDateChange(date.toISOString().split('T')[0])
-  }
-
-  const goToToday = () => {
-    onDateChange(new Date().toISOString().split('T')[0])
+    const dateStr = today.toISOString().split('T')[0]
+    onDateChange(dateStr)
     setShowCalendar(false)
   }
 
+  const changeDay = (delta) => {
+    try {
+      const currentDate = new Date(selectedDate + 'T00:00:00')
+      if (isNaN(currentDate.getTime())) {
+        handleToday()
+        return
+      }
+      
+      currentDate.setDate(currentDate.getDate() + delta)
+      const newDateStr = currentDate.toISOString().split('T')[0]
+      
+      // Don't allow future dates
+      const today = new Date().toISOString().split('T')[0]
+      if (newDateStr <= today) {
+        onDateChange(newDateStr)
+      }
+    } catch (error) {
+      console.error('Error changing date:', error)
+      handleToday()
+    }
+  }
+
+  const isToday = () => {
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      return selectedDate === today
+    } catch (error) {
+      return false
+    }
+  }
+
+  const maxDate = new Date().toISOString().split('T')[0]
+
   return (
-    <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-      <div className="flex items-center justify-between gap-4">
-        {/* Previous Day */}
+    <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+      <div className="flex items-center justify-between">
+        {/* Previous Day Button */}
         <button
-          onClick={() => navigateDate(-1)}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          title="Jour précédent"
+          onClick={() => changeDay(-1)}
+          className="p-2 hover:bg-gray-100 rounded-lg transition"
         >
-          <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
 
-        {/* Current Date Display */}
+        {/* Date Display */}
         <div className="flex-1 text-center">
           <button
             onClick={() => setShowCalendar(!showCalendar)}
-            className="w-full px-4 py-2 hover:bg-gray-50 rounded-lg transition-colors"
+            className="text-lg font-medium hover:text-purple-600 transition"
           >
-            <div className="text-lg font-semibold text-gray-900 capitalize">
-              {formatDateDisplay(selectedDate)}
-            </div>
-            <div className="text-xs text-gray-500">
-              {new Date(selectedDate).toLocaleDateString('fr-FR')}
-            </div>
+            {formatDate(selectedDate)}
           </button>
-
-          {/* Calendar Popup */}
+          
           {showCalendar && (
-            <div className="absolute z-10 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-4">
-              <div className="mb-3 flex justify-between items-center">
-                <h3 className="font-semibold text-gray-900">Sélectionner une date</h3>
-                <button
-                  onClick={() => setShowCalendar(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
-              </div>
-              
+            <div className="absolute z-10 mt-2 bg-white border rounded-lg shadow-lg p-4 left-1/2 transform -translate-x-1/2">
               <input
                 type="date"
-                value={selectedDate}
-                onChange={(e) => {
-                  onDateChange(e.target.value)
-                  setShowCalendar(false)
-                }}
-                max={new Date().toISOString().split('T')[0]}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                value={selectedDate || ''}
+                onChange={handleDateChange}
+                max={maxDate}
+                className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
               />
-
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => navigateDate(-7)}
-                  className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                >
-                  Il y a 7 jours
-                </button>
-                <button
-                  onClick={() => navigateDate(-30)}
-                  className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                >
-                  Il y a 30 jours
-                </button>
-              </div>
-
-              <button
-                onClick={goToToday}
-                className="w-full mt-3 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
-              >
-                Aujourd'hui
-              </button>
             </div>
           )}
         </div>
 
-        {/* Next Day */}
+        {/* Next Day Button */}
         <button
-          onClick={() => navigateDate(1)}
-          disabled={selectedDate === new Date().toISOString().split('T')[0]}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          title="Jour suivant"
+          onClick={() => changeDay(1)}
+          disabled={isToday()}
+          className={`p-2 rounded-lg transition ${
+            isToday()
+              ? 'text-gray-300 cursor-not-allowed'
+              : 'hover:bg-gray-100'
+          }`}
         >
-          <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>
+      </div>
 
-        {/* Today Button */}
-        {selectedDate !== new Date().toISOString().split('T')[0] && (
+      {/* Today Button */}
+      {!isToday() && (
+        <div className="mt-3 text-center">
           <button
-            onClick={goToToday}
-            className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white rounded-lg font-medium transition-all text-sm"
+            onClick={handleToday}
+            className="text-sm text-purple-600 hover:text-purple-700 font-medium"
           >
             Aujourd'hui
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
