@@ -40,10 +40,14 @@ function StatsTab({ token }) {
 
       // Extract unique exercises
       const cardioExercises = [...new Set(
-        (cardioRes.data || []).map(a => a.exercise?.name).filter(Boolean)
+        (cardioRes.data || [])
+          .filter(a => a.exercise && a.exercise.name)
+          .map(a => a.exercise.name)
       )]
       const muscuExercises = [...new Set(
-        (muscuRes.data || []).map(a => a.exercise?.name).filter(Boolean)
+        (muscuRes.data || [])
+          .filter(a => a.exercise && a.exercise.name)
+          .map(a => a.exercise.name)
       )]
       
       setExercises({ cardio: cardioExercises, muscu: muscuExercises })
@@ -120,7 +124,7 @@ function StatsTab({ token }) {
       case 'cardio': {
         let data = filteredCardio
         if (selectedExercise !== 'all') {
-          data = data.filter(a => a.exercise?.name === selectedExercise)
+          data = data.filter(a => a.exercise && a.exercise.name === selectedExercise)
         }
         return aggregateByDate(data, 'minutes').map(d => ({
           ...d,
@@ -131,7 +135,7 @@ function StatsTab({ token }) {
       case 'muscu': {
         let data = filteredMuscu
         if (selectedExercise !== 'all') {
-          data = data.filter(a => a.exercise?.name === selectedExercise)
+          data = data.filter(a => a.exercise && a.exercise.name === selectedExercise)
         }
         // Group by date and get max weight
         const dateMap = {}
@@ -183,14 +187,14 @@ function StatsTab({ token }) {
     if (mode !== 'muscu' || selectedExercise === 'all') return null
 
     const filteredData = filterByDateRange(muscuData)
-      .filter(a => a.exercise?.name === selectedExercise)
+      .filter(a => a.exercise && a.exercise.name === selectedExercise)
       .sort((a, b) => a.date.localeCompare(b.date))
 
     if (filteredData.length === 0) return null
 
     // All historical data for comparison
     const allHistorical = muscuData
-      .filter(a => a.exercise?.name === selectedExercise)
+      .filter(a => a.exercise && a.exercise.name === selectedExercise)
       .sort((a, b) => a.date.localeCompare(b.date))
 
     // Group by weight to analyze reps
@@ -511,10 +515,7 @@ function StatsTab({ token }) {
                       </div>
                       
                       <div className="text-xs text-gray-600 mt-4 text-center">
-                        {new Date(item.date).toLocaleDateString('fr-FR', {
-                          day: '2-digit',
-                          month: 'short'
-                        })}
+                        {item.date}
                       </div>
                     </div>
                   )

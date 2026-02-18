@@ -49,7 +49,7 @@ function AdminTab({ token, currentUser }) {
 
   const loadCalorieSettings = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/admin/calorie-settings`, {
+      const response = await axios.get(`${API_URL}/api/admin/settings/calories`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (response.data) {
@@ -62,8 +62,8 @@ function AdminTab({ token, currentUser }) {
 
   const saveCalorieSettings = async () => {
     try {
-      await axios.post(
-        `${API_URL}/api/admin/calorie-settings`,
+      await axios.put(
+        `${API_URL}/api/admin/settings/calories`,
         calorieSettings,
         { headers: { Authorization: `Bearer ${token}` } }
       )
