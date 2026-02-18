@@ -105,7 +105,6 @@ function StatsTab({ token }) {
         const cardioCalories = aggregateByDate(filteredCardio, 'calories')
         const muscuCalories = aggregateByDate(filteredMuscu, 'calories')
         
-        // Merge cardio and muscu calories
         const allDates = new Set([
           ...cardioCalories.map(d => d.date),
           ...muscuCalories.map(d => d.date)
@@ -134,16 +133,16 @@ function StatsTab({ token }) {
         if (selectedExercise !== 'all') {
           data = data.filter(a => a.exercise?.name === selectedExercise)
         }
-        // Aggregate total sets
+        // Group by date and get max weight
         const dateMap = {}
         data.forEach(item => {
           if (!dateMap[item.date]) {
             dateMap[item.date] = 0
           }
-          dateMap[item.date] += item.sets || 0
+          dateMap[item.date] = Math.max(dateMap[item.date], item.weight || 0)
         })
         return Object.entries(dateMap)
-          .map(([date, value]) => ({ date, value, label: `${value} séries` }))
+          .map(([date, value]) => ({ date, value, label: `${value} kg` }))
           .sort((a, b) => a.date.localeCompare(b.date))
       }
 
@@ -178,6 +177,143 @@ function StatsTab({ token }) {
   }
 
   const stats = getStats()
+
+  // MUSCU ANALYSIS
+  const getMuscuAnalysis = () => {
+    if (mode !== 'muscu' || selectedExercise === 'all') return null
+
+    const filteredData = filterByDateRange(muscuData)
+      .filter(a => a.exercise?.name === selectedExercise)
+      .sort((a, b) => a.date.localeCompare(b.date))
+
+    if (filteredData.length === 0) return null
+
+    // All historical data for comparison
+    const allHistorical = muscuData
+      .filter(a => a.exercise?.name === selectedExercise)
+      .sort((a, b) => a.date.localeCompare(b.date))
+
+    // Group by weight to analyze reps
+    const weightProgressMap = {}
+    
+    filteredData.forEach(session => {
+      const weight = session.weight || 0
+      const key = weight.toString()
+      
+      if (!weightProgressMap[key]) {
+        weightProgressMap[key] = []
+      }
+      
+      weightProgressMap[key].push({
+        date: session.date,
+        sets: session.sets,
+        reps: session.reps,
+        totalReps: session.sets * session.reps
+      })
+    })
+
+    // Calculate progress for each weight
+    const weightProgress = Object.entries(weightProgressMap).map(([weight, sessions]) => {
+      const sorted = sessions.sort((a, b) => a.date.localeCompare(b.date))
+      const latest = sorted[sorted.length - 1]
+      const previous = sorted[sorted.length - 2]
+      const first = sorted[0]
+
+      let vsLast = 0
+      let vsFirst = 0
+
+      if (previous) {
+        vsLast = latest.totalReps - previous.totalReps
+      }
+      
+      if (first && sorted.length > 1) {
+        vsFirst = latest.totalReps - first.totalReps
+      }
+
+      return {
+        weight: parseFloat(weight),
+        latestDate: latest.date,
+        latestReps: latest.totalReps,
+        latestSets: latest.sets,
+        latestRepsPerSet: latest.reps,
+        vsLast,
+        vsFirst,
+        sessionsCount: sessions.length
+      }
+    }).sort((a, b) => b.weight - a.weight)
+
+    // Weight progression over time
+    const weightByDate = filteredData.reduce((acc, session) => {
+      if (!acc[session.date]) {
+        acc[session.date] = { maxWeight: 0, totalReps: 0 }
+      }
+      acc[session.date].maxWeight = Math.max(acc[session.date].maxWeight, session.weight || 0)
+      acc[session.date].totalReps += (session.sets * session.reps)
+      return acc
+    }, {})
+
+    const weightProgression = Object.entries(weightByDate)
+      .map(([date, data]) => ({ ...data, date }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+
+    // Calculate progression vs previous and first
+    weightProgression.forEach((item, index) => {
+      if (index > 0) {
+        item.vsLast = item.maxWeight - weightProgression[index - 1].maxWeight
+      } else {
+        item.vsLast = 0
+      }
+      item.vsFirst = item.maxWeight - weightProgression[0].maxWeight
+    })
+
+    return {
+      weightProgress,
+      weightProgression
+    }
+  }
+
+  const muscuAnalysis = getMuscuAnalysis()
+
+  // WEIGHT ANALYSIS
+  const getWeightAnalysis = () => {
+    if (mode !== 'weight') return null
+
+    const filteredData = filterByDateRange(weightData)
+      .sort((a, b) => a.date.localeCompare(b.date))
+
+    if (filteredData.length === 0) return null
+
+    // All historical data
+    const allHistorical = weightData.sort((a, b) => a.date.localeCompare(b.date))
+    const firstEver = allHistorical[0]
+
+    const analysis = filteredData.map((entry, index) => {
+      const previous = index > 0 ? filteredData[index - 1] : null
+      
+      return {
+        date: entry.date,
+        weight: entry.weight,
+        bodyFat: entry.bodyFat,
+        muscleMass: entry.muscleMass,
+        // vs previous
+        weightDiff: previous ? entry.weight - previous.weight : 0,
+        bodyFatDiff: previous && entry.bodyFat && previous.bodyFat 
+          ? entry.bodyFat - previous.bodyFat : null,
+        muscleMassDiff: previous && entry.muscleMass && previous.muscleMass 
+          ? entry.muscleMass - previous.muscleMass : null,
+        // vs first
+        weightDiffFirst: entry.weight - firstEver.weight,
+        bodyFatDiffFirst: entry.bodyFat && firstEver.bodyFat 
+          ? entry.bodyFat - firstEver.bodyFat : null,
+        muscleMassDiffFirst: entry.muscleMass && firstEver.muscleMass 
+          ? entry.muscleMass - firstEver.muscleMass : null
+      }
+    })
+
+    return analysis
+  }
+
+  const weightAnalysis = getWeightAnalysis()
 
   if (loading) {
     return (
@@ -309,12 +445,12 @@ function StatsTab({ token }) {
       </div>
 
       {/* Chart */}
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <h3 className="text-xl font-bold mb-4">
           {mode === 'calories' && 'Évolution des calories'}
           {mode === 'cardio' && `Évolution - ${selectedExercise === 'all' ? 'Tous les exercices' : selectedExercise}`}
-          {mode === 'muscu' && `Évolution - ${selectedExercise === 'all' ? 'Tous les exercices' : selectedExercise}`}
-          {mode === 'weight' && 'Évolution du poids'}
+          {mode === 'muscu' && `Évolution du poids porté - ${selectedExercise === 'all' ? 'Tous les exercices' : selectedExercise}`}
+          {mode === 'weight' && 'Évolution du poids corporel'}
         </h3>
 
         {chartData.length === 0 ? (
@@ -328,19 +464,19 @@ function StatsTab({ token }) {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
                 <div>
                   <div className="text-sm text-gray-600">Total</div>
-                  <div className="text-lg font-bold">{Math.round(stats.total)}</div>
+                  <div className="text-lg font-bold">{Math.round(stats.total * 10) / 10}</div>
                 </div>
                 <div>
                   <div className="text-sm text-gray-600">Moyenne</div>
-                  <div className="text-lg font-bold">{Math.round(stats.avg)}</div>
+                  <div className="text-lg font-bold">{Math.round(stats.avg * 10) / 10}</div>
                 </div>
                 <div>
                   <div className="text-sm text-gray-600">Maximum</div>
-                  <div className="text-lg font-bold">{Math.round(stats.max)}</div>
+                  <div className="text-lg font-bold">{Math.round(stats.max * 10) / 10}</div>
                 </div>
                 <div>
                   <div className="text-sm text-gray-600">Minimum</div>
-                  <div className="text-lg font-bold">{Math.round(stats.min)}</div>
+                  <div className="text-lg font-bold">{Math.round(stats.min * 10) / 10}</div>
                 </div>
               </div>
             )}
@@ -358,26 +494,22 @@ function StatsTab({ token }) {
                       className="flex flex-col items-center justify-end"
                       style={{ width: `${100 / chartData.length}%`, maxWidth: '80px' }}
                     >
-                      {/* Bar Container */}
                       <div className="relative w-full flex items-end justify-center group">
                         <div
                           className="w-16 bg-gradient-to-t from-purple-600 to-purple-400 rounded-t-lg transition-all duration-300 hover:opacity-80 cursor-pointer"
                           style={{ height: `${heightPx}px` }}
                           title={item.label}
                         >
-                          {/* Value on top of bar */}
                           <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs font-medium text-gray-700">
-                            {Math.round(item.value)}
+                            {Math.round(item.value * 10) / 10}
                           </div>
                         </div>
                         
-                        {/* Hover Tooltip */}
                         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-8 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                           {item.label}
                         </div>
                       </div>
                       
-                      {/* Date label */}
                       <div className="text-xs text-gray-600 mt-4 text-center">
                         {new Date(item.date).toLocaleDateString('fr-FR', {
                           day: '2-digit',
@@ -392,6 +524,198 @@ function StatsTab({ token }) {
           </>
         )}
       </div>
+
+      {/* MUSCU DETAILED ANALYSIS */}
+      {mode === 'muscu' && selectedExercise !== 'all' && muscuAnalysis && (
+        <>
+          {/* Weight Progression Table */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 className="text-xl font-bold mb-4">📈 Progression par poids</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">Poids (kg)</th>
+                    <th className="px-4 py-3 text-left font-medium">Dernière séance</th>
+                    <th className="px-4 py-3 text-center font-medium">Répétitions totales</th>
+                    <th className="px-4 py-3 text-center font-medium">vs Séance précédente</th>
+                    <th className="px-4 py-3 text-center font-medium">vs Début période</th>
+                    <th className="px-4 py-3 text-center font-medium">Nb séances</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {muscuAnalysis.weightProgress.map((wp, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-bold">{wp.weight} kg</td>
+                      <td className="px-4 py-3 text-gray-600">{wp.latestDate}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="font-medium">{wp.latestReps}</span>
+                        <span className="text-gray-500 text-xs ml-1">
+                          ({wp.latestSets}×{wp.latestRepsPerSet})
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {wp.vsLast === 0 ? (
+                          <span className="text-gray-400">-</span>
+                        ) : (
+                          <span className={wp.vsLast > 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                            {wp.vsLast > 0 ? '+' : ''}{wp.vsLast}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {wp.vsFirst === 0 ? (
+                          <span className="text-gray-400">-</span>
+                        ) : (
+                          <span className={wp.vsFirst > 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                            {wp.vsFirst > 0 ? '+' : ''}{wp.vsFirst}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center text-gray-600">{wp.sessionsCount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Daily Weight Progression */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-xl font-bold mb-4">📅 Évolution du poids max par séance</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">Date</th>
+                    <th className="px-4 py-3 text-center font-medium">Poids max (kg)</th>
+                    <th className="px-4 py-3 text-center font-medium">Reps totales</th>
+                    <th className="px-4 py-3 text-center font-medium">vs Séance précédente</th>
+                    <th className="px-4 py-3 text-center font-medium">vs Début période</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {muscuAnalysis.weightProgression.map((prog, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">{prog.date}</td>
+                      <td className="px-4 py-3 text-center font-bold">{prog.maxWeight} kg</td>
+                      <td className="px-4 py-3 text-center">{prog.totalReps}</td>
+                      <td className="px-4 py-3 text-center">
+                        {prog.vsLast === 0 ? (
+                          <span className="text-gray-400">=</span>
+                        ) : (
+                          <span className={prog.vsLast > 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                            {prog.vsLast > 0 ? '+' : ''}{prog.vsLast} kg
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {prog.vsFirst === 0 ? (
+                          <span className="text-gray-400">=</span>
+                        ) : (
+                          <span className={prog.vsFirst > 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                            {prog.vsFirst > 0 ? '+' : ''}{prog.vsFirst} kg
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* WEIGHT DETAILED ANALYSIS */}
+      {mode === 'weight' && weightAnalysis && weightAnalysis.length > 0 && (
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-xl font-bold mb-4">📊 Analyse détaillée des pesées</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium">Date</th>
+                  <th className="px-4 py-3 text-center font-medium">Poids (kg)</th>
+                  <th className="px-4 py-3 text-center font-medium">M. Grasse (%)</th>
+                  <th className="px-4 py-3 text-center font-medium">M. Muscu (kg)</th>
+                  <th className="px-4 py-3 text-center font-medium" colSpan="3">vs Pesée précédente</th>
+                  <th className="px-4 py-3 text-center font-medium" colSpan="3">vs Début période</th>
+                </tr>
+                <tr className="bg-gray-50 border-t">
+                  <th colSpan="4"></th>
+                  <th className="px-2 py-2 text-center text-xs text-gray-600">Poids</th>
+                  <th className="px-2 py-2 text-center text-xs text-gray-600">Grasse</th>
+                  <th className="px-2 py-2 text-center text-xs text-gray-600">Muscu</th>
+                  <th className="px-2 py-2 text-center text-xs text-gray-600">Poids</th>
+                  <th className="px-2 py-2 text-center text-xs text-gray-600">Grasse</th>
+                  <th className="px-2 py-2 text-center text-xs text-gray-600">Muscu</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {weightAnalysis.map((wa, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-4 py-3">{wa.date}</td>
+                    <td className="px-4 py-3 text-center font-bold">{wa.weight}</td>
+                    <td className="px-4 py-3 text-center">{wa.bodyFat ? `${wa.bodyFat}%` : '-'}</td>
+                    <td className="px-4 py-3 text-center">{wa.muscleMass || '-'}</td>
+                    
+                    {/* vs Previous */}
+                    <td className="px-2 py-3 text-center">
+                      {wa.weightDiff === 0 ? (
+                        <span className="text-gray-400">=</span>
+                      ) : (
+                        <span className={wa.weightDiff > 0 ? 'text-red-600' : 'text-green-600'}>
+                          {wa.weightDiff > 0 ? '+' : ''}{wa.weightDiff.toFixed(1)}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-2 py-3 text-center">
+                      {wa.bodyFatDiff === null ? '-' : (
+                        <span className={wa.bodyFatDiff > 0 ? 'text-red-600' : 'text-green-600'}>
+                          {wa.bodyFatDiff > 0 ? '+' : ''}{wa.bodyFatDiff.toFixed(1)}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-2 py-3 text-center">
+                      {wa.muscleMassDiff === null ? '-' : (
+                        <span className={wa.muscleMassDiff > 0 ? 'text-green-600' : 'text-red-600'}>
+                          {wa.muscleMassDiff > 0 ? '+' : ''}{wa.muscleMassDiff.toFixed(1)}
+                        </span>
+                      )}
+                    </td>
+                    
+                    {/* vs First */}
+                    <td className="px-2 py-3 text-center">
+                      {wa.weightDiffFirst === 0 ? (
+                        <span className="text-gray-400">=</span>
+                      ) : (
+                        <span className={wa.weightDiffFirst > 0 ? 'text-red-600 font-medium' : 'text-green-600 font-medium'}>
+                          {wa.weightDiffFirst > 0 ? '+' : ''}{wa.weightDiffFirst.toFixed(1)}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-2 py-3 text-center">
+                      {wa.bodyFatDiffFirst === null ? '-' : (
+                        <span className={wa.bodyFatDiffFirst > 0 ? 'text-red-600 font-medium' : 'text-green-600 font-medium'}>
+                          {wa.bodyFatDiffFirst > 0 ? '+' : ''}{wa.bodyFatDiffFirst.toFixed(1)}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-2 py-3 text-center">
+                      {wa.muscleMassDiffFirst === null ? '-' : (
+                        <span className={wa.muscleMassDiffFirst > 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                          {wa.muscleMassDiffFirst > 0 ? '+' : ''}{wa.muscleMassDiffFirst.toFixed(1)}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
