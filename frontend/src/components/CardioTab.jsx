@@ -3,65 +3,85 @@ import axios from 'axios'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
-function CardioTab({ token, currentDate }) {
+function CardioTab({ token }) {
   const [activities, setActivities] = useState([])
-  const [exercise, setExercise] = useState('')
-  const [minutes, setMinutes] = useState('')
-  const [intensity, setIntensity] = useState('Moyenne')
-  const [loading, setLoading] = useState(false)
+  const [exercises, setExercises] = useState([])
+  const [formData, setFormData] = useState({
+    date: new Date().toISOString().split('T')[0],
+    exerciseName: '',
+    minutes: '',
+    intensity: 'Moyenne'
+  })
   const [message, setMessage] = useState('')
-
-  const cardioExercises = ['Course', 'Vélo', 'Natation', 'Marche', 'Rameur', 'Elliptique']
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchActivities()
-  }, [currentDate])
+    fetchExercises()
+  }, [])
 
   const fetchActivities = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/cardio`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { startDate: currentDate, endDate: currentDate }
+        headers: { Authorization: `Bearer ${token}` }
       })
       setActivities(response.data)
     } catch (error) {
       console.error('Error fetching activities:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchExercises = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/exercises?type=cardio`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setExercises(response.data)
+      // Auto-sélectionner le premier exercice
+      if (response.data.length > 0 && !formData.exerciseName) {
+        setFormData(prev => ({ ...prev, exerciseName: response.data[0].name }))
+      }
+    } catch (error) {
+      console.error('Error fetching exercises:', error)
     }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!exercise || !minutes) {
-      setMessage('Remplissez tous les champs')
+    
+    if (!formData.exerciseName || !formData.minutes || !formData.date) {
+      setMessage('❌ Veuillez remplir tous les champs')
       return
     }
-
-    setLoading(true)
-    setMessage('')
 
     try {
       await axios.post(
         `${API_URL}/api/cardio`,
         {
-          date: currentDate,
-          exerciseName: exercise,
-          minutes: parseInt(minutes),
-          intensity
+          date: formData.date,
+          exerciseName: formData.exerciseName,
+          minutes: parseInt(formData.minutes),
+          intensity: formData.intensity
         },
         { headers: { Authorization: `Bearer ${token}` } }
       )
 
-      setMessage('✅ Activité ajoutée !')
-      setExercise('')
-      setMinutes('')
-      setIntensity('Moyenne')
+      setMessage('✅ Activité ajoutée avec succès !')
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        exerciseName: formData.exerciseName,
+        minutes: '',
+        intensity: 'Moyenne'
+      })
       fetchActivities()
-
+      fetchExercises() // Refresh au cas où nouvel exercice créé
+      
       setTimeout(() => setMessage(''), 3000)
     } catch (error) {
+      console.error('Error adding activity:', error)
       setMessage('❌ Erreur lors de l\'ajout')
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -76,141 +96,126 @@ function CardioTab({ token, currentDate }) {
       fetchActivities()
       setTimeout(() => setMessage(''), 3000)
     } catch (error) {
+      console.error('Error deleting activity:', error)
       setMessage('❌ Erreur lors de la suppression')
     }
   }
 
-  const totalMinutes = activities.reduce((sum, a) => sum + a.minutes, 0)
-  const totalCalories = activities.reduce((sum, a) => sum + a.calories, 0)
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-gray-600">Chargement...</div>
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="text-3xl mb-2">🏃</div>
-          <div className="text-2xl font-bold text-gray-900">{activities.length}</div>
-          <div className="text-sm text-gray-500">Activités</div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="text-3xl mb-2">⏱️</div>
-          <div className="text-2xl font-bold text-gray-900">{totalMinutes} min</div>
-          <div className="text-sm text-gray-500">Durée totale</div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="text-3xl mb-2">🔥</div>
-          <div className="text-2xl font-bold text-gray-900">{totalCalories} kcal</div>
-          <div className="text-sm text-gray-500">Calories brûlées</div>
-        </div>
-      </div>
-
-      {/* Add Activity Form */}
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Ajouter une activité</h2>
+    <div className="max-w-4xl mx-auto p-6">
+      {/* Formulaire */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 className="text-2xl font-bold mb-4 text-purple-600">📊 Ajouter une activité cardio</h2>
         
         {message && (
-          <div className={`mb-4 p-3 rounded-lg text-sm ${
-            message.includes('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-          }`}>
+          <div className={`mb-4 p-3 rounded ${message.includes('✅') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
             {message}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Exercice</label>
+            <label className="block text-sm font-medium mb-1">Date</label>
+            <input
+              type="date"
+              value={formData.date}
+              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+              required
+            />
+          </div>
+
+          {/* Exercice */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Exercice</label>
             <select
-              value={exercise}
-              onChange={(e) => setExercise(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+              value={formData.exerciseName}
+              onChange={(e) => setFormData({ ...formData, exerciseName: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
               required
             >
               <option value="">Sélectionner un exercice</option>
-              {cardioExercises.map(ex => (
-                <option key={ex} value={ex}>{ex}</option>
+              {exercises.map((ex) => (
+                <option key={ex.id} value={ex.name}>
+                  {ex.name}
+                </option>
               ))}
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Durée (minutes)</label>
-              <input
-                type="number"
-                value={minutes}
-                onChange={(e) => setMinutes(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
-                placeholder="30"
-                min="1"
-                required
-              />
-            </div>
+          {/* Durée */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Durée (minutes)</label>
+            <input
+              type="number"
+              min="1"
+              value={formData.minutes}
+              onChange={(e) => setFormData({ ...formData, minutes: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+              placeholder="30"
+              required
+            />
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Intensité</label>
-              <select
-                value={intensity}
-                onChange={(e) => setIntensity(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
-              >
-                <option value="Faible">Faible</option>
-                <option value="Moyenne">Moyenne</option>
-                <option value="Haute">Haute</option>
-              </select>
-            </div>
+          {/* Intensité */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Intensité</label>
+            <select
+              value={formData.intensity}
+              onChange={(e) => setFormData({ ...formData, intensity: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+            >
+              <option value="Faible">Faible</option>
+              <option value="Moyenne">Moyenne</option>
+              <option value="Haute">Haute</option>
+            </select>
           </div>
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white py-3 rounded-lg font-semibold transition-all transform hover:scale-105"
+            className="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition"
           >
-            {loading ? 'Ajout...' : 'Ajouter l\'activité'}
+            Ajouter l'activité
           </button>
         </form>
       </div>
 
-      {/* Activities List */}
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Activités du jour ({activities.length})
-        </h2>
-
+      {/* Liste des activités */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-xl font-bold mb-4">Historique</h3>
+        
         {activities.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <div className="text-4xl mb-2">🏃</div>
-            <p>Aucune activité cardio aujourd'hui</p>
-            <p className="text-sm mt-1">Ajoutez votre première activité ci-dessus !</p>
-          </div>
+          <p className="text-gray-500 text-center py-8">Aucune activité enregistrée</p>
         ) : (
           <div className="space-y-3">
             {activities.map((activity) => (
               <div
                 key={activity.id}
-                className="flex items-center justify-between p-4 bg-gradient-to-r from-red-50 to-pink-50 rounded-lg border border-red-100"
+                className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
               >
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-900">
-                      {activity.exercise?.name || 'Exercice'}
-                    </span>
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      activity.intensity === 'Haute' ? 'bg-red-100 text-red-700' :
-                      activity.intensity === 'Moyenne' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-green-100 text-green-700'
-                    }`}>
-                      {activity.intensity}
-                    </span>
+                  <div className="font-medium">{activity.exercise?.name || 'Exercice'}</div>
+                  <div className="text-sm text-gray-600">
+                    {activity.date} • {activity.minutes} min • {activity.intensity}
                   </div>
-                  <div className="text-sm text-gray-600 mt-1">
-                    {activity.minutes} min • {activity.calories} kcal
+                  <div className="text-sm font-medium text-purple-600">
+                    {activity.calories} calories
                   </div>
                 </div>
                 <button
                   onClick={() => handleDelete(activity.id)}
-                  className="px-4 py-2 text-sm text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                  className="text-red-600 hover:text-red-800 px-3 py-1"
                 >
-                  Supprimer
+                  🗑️
                 </button>
               </div>
             ))}
