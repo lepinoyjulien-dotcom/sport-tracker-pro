@@ -346,38 +346,42 @@ function StatsTab({ token }) {
             )}
 
             {/* Simple Bar Chart */}
-            <div className="relative" style={{ height: '300px' }}>
-              <div className="flex items-end justify-around h-full border-b border-l border-gray-300 pb-8 pl-12 pr-4">
+            <div className="relative border-b border-l border-gray-300 ml-8" style={{ height: '300px' }}>
+              <div className="flex justify-around items-end h-full pb-12 px-4" style={{ height: '100%' }}>
                 {chartData.map((item, index) => {
                   const maxValue = Math.max(...chartData.map(d => d.value))
-                  const heightPercent = maxValue > 0 ? (item.value / maxValue) * 100 : 0
+                  const heightPx = maxValue > 0 ? Math.max((item.value / maxValue) * 250, 20) : 0
                   
                   return (
                     <div
                       key={index}
-                      className="flex flex-col items-center flex-1 mx-1"
-                      style={{ maxWidth: '80px' }}
+                      className="flex flex-col items-center justify-end"
+                      style={{ width: `${100 / chartData.length}%`, maxWidth: '80px' }}
                     >
-                      {/* Bar */}
-                      <div className="relative w-full group">
+                      {/* Bar Container */}
+                      <div className="relative w-full flex items-end justify-center group">
                         <div
-                          className="w-full bg-gradient-to-t from-purple-600 to-purple-400 rounded-t-lg transition-all duration-300 hover:opacity-80"
-                          style={{
-                            height: `${heightPercent}%`,
-                            minHeight: heightPercent > 0 ? '20px' : '0px'
-                          }}
-                        />
-                        {/* Tooltip */}
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                          className="w-16 bg-gradient-to-t from-purple-600 to-purple-400 rounded-t-lg transition-all duration-300 hover:opacity-80 cursor-pointer"
+                          style={{ height: `${heightPx}px` }}
+                          title={item.label}
+                        >
+                          {/* Value on top of bar */}
+                          <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs font-medium text-gray-700">
+                            {Math.round(item.value)}
+                          </div>
+                        </div>
+                        
+                        {/* Hover Tooltip */}
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-8 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                           {item.label}
                         </div>
                       </div>
                       
                       {/* Date label */}
-                      <div className="text-xs text-gray-600 mt-2 transform -rotate-45 origin-top-left whitespace-nowrap">
+                      <div className="text-xs text-gray-600 mt-4 text-center">
                         {new Date(item.date).toLocaleDateString('fr-FR', {
                           day: '2-digit',
-                          month: '2-digit'
+                          month: 'short'
                         })}
                       </div>
                     </div>
