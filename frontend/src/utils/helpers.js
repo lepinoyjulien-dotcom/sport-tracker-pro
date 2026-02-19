@@ -4,21 +4,29 @@
  * Format date to French locale
  */
 export const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
+  try {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    })
+  } catch (error) {
+    return dateString
+  }
 }
 
 /**
  * Format date to short format (DD/MM)
  */
 export const formatDateShort = (dateString) => {
-  return new Date(dateString).toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: '2-digit'
-  })
+  try {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit'
+    })
+  } catch (error) {
+    return dateString
+  }
 }
 
 /**
@@ -33,7 +41,7 @@ export const calculateCardioCalories = (intensity, weight, minutes) => {
     'Moyenne': 7,
     'Haute': 10
   }
-  
+
   const met = metValues[intensity] || 7
   return Math.round((met * weight * minutes) / 60)
 }
@@ -85,10 +93,37 @@ export const groupByExercise = (array) => {
  */
 export const getLastNDays = (n) => {
   const dates = []
-  for (let i = n - 1; i >= 0; i--) {
-    const date = new Date()
-    date.setDate(date.getDate() - i)
-    dates.push(date.toISOString().split('T')[0])
+  try {
+    for (let i = n - 1; i >= 0; i--) {
+      const date = new Date()
+      date.setDate(date.getDate() - i)
+      
+      // Validate date before converting
+      if (isNaN(date.getTime())) {
+        console.error(`Invalid date generated for i=${i}`)
+        continue
+      }
+      
+      try {
+        const dateStr = date.toISOString().split('T')[0]
+        dates.push(dateStr)
+      } catch (error) {
+        console.error('Error converting date to ISO string:', error)
+        // Fallback to manual formatting
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        dates.push(`${year}-${month}-${day}`)
+      }
+    }
+  } catch (error) {
+    console.error('Error in getLastNDays:', error)
+    // Return at least today
+    const today = new Date()
+    const year = today.getFullYear()
+    const month = String(today.getMonth() + 1).padStart(2, '0')
+    const day = String(today.getDate()).padStart(2, '0')
+    return [`${year}-${month}-${day}`]
   }
   return dates
 }
@@ -198,18 +233,32 @@ export const isValidPassword = (password) => {
  * Get date range for last N days
  */
 export const getDateRange = (days) => {
-  const endDate = new Date().toISOString().split('T')[0]
-  const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split('T')[0]
-  return { startDate, endDate }
+  try {
+    const endDate = new Date()
+    const endDateStr = endDate.toISOString().split('T')[0]
+    
+    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+    const startDateStr = startDate.toISOString().split('T')[0]
+    
+    return { startDate: startDateStr, endDate: endDateStr }
+  } catch (error) {
+    console.error('Error in getDateRange:', error)
+    // Fallback
+    const today = new Date()
+    const year = today.getFullYear()
+    const month = String(today.getMonth() + 1).padStart(2, '0')
+    const day = String(today.getDate()).padStart(2, '0')
+    const todayStr = `${year}-${month}-${day}`
+    
+    return { startDate: todayStr, endDate: todayStr }
+  }
 }
 
 /**
  * Sort array by date (most recent first)
  */
 export const sortByDateDesc = (array, dateField = 'date') => {
-  return [...array].sort((a, b) => 
+  return [...array].sort((a, b) =>
     new Date(b[dateField]) - new Date(a[dateField])
   )
 }
@@ -218,7 +267,7 @@ export const sortByDateDesc = (array, dateField = 'date') => {
  * Sort array by date (oldest first)
  */
 export const sortByDateAsc = (array, dateField = 'date') => {
-  return [...array].sort((a, b) => 
+  return [...array].sort((a, b) =>
     new Date(a[dateField]) - new Date(b[dateField])
   )
 }
