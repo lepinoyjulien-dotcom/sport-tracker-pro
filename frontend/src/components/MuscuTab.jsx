@@ -3,11 +3,10 @@ import axios from 'axios'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
-function MuscuTab({ token }) {
+function MuscuTab({ token, selectedDate }) {
   const [activities, setActivities] = useState([])
   const [exercises, setExercises] = useState([])
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
     exerciseName: '',
     sets: '',
     reps: '',
@@ -52,7 +51,7 @@ function MuscuTab({ token }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    if (!formData.exerciseName || !formData.sets || !formData.reps || !formData.date) {
+    if (!formData.exerciseName || !formData.sets || !formData.reps || !selectedDate) {
       setMessage('❌ Veuillez remplir tous les champs obligatoires')
       return
     }
@@ -61,7 +60,7 @@ function MuscuTab({ token }) {
       await axios.post(
         `${API_URL}/api/muscu`,
         {
-          date: formData.date,
+          date: selectedDate,
           exerciseName: formData.exerciseName,
           sets: parseInt(formData.sets),
           reps: parseInt(formData.reps),
@@ -72,7 +71,6 @@ function MuscuTab({ token }) {
 
       setMessage('✅ Activité ajoutée avec succès !')
       setFormData({
-        date: new Date().toISOString().split('T')[0],
         exerciseName: formData.exerciseName,
         sets: '',
         reps: '',
@@ -125,18 +123,6 @@ function MuscuTab({ token }) {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Date */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Date</label>
-            <input
-              type="date"
-              value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
-              required
-            />
-          </div>
-
           {/* Exercice */}
           <div>
             <label className="block text-sm font-medium mb-1">Exercice</label>

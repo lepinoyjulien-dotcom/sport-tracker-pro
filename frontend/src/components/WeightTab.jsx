@@ -3,10 +3,9 @@ import axios from 'axios'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
-function WeightTab({ token }) {
+function WeightTab({ token, selectedDate }) {
   const [entries, setEntries] = useState([])
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
     weight: '',
     bodyFat: '',
     muscleMass: ''
@@ -34,8 +33,8 @@ function WeightTab({ token }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    if (!formData.weight || !formData.date) {
-      setMessage('❌ Le poids et la date sont requis')
+    if (!formData.weight || !selectedDate) {
+      setMessage('❌ Le poids est requis')
       return
     }
 
@@ -43,7 +42,7 @@ function WeightTab({ token }) {
       await axios.post(
         `${API_URL}/api/weight`,
         {
-          date: formData.date,
+          date: selectedDate,
           weight: parseFloat(formData.weight),
           bodyFat: formData.bodyFat ? parseFloat(formData.bodyFat) : null,
           muscleMass: formData.muscleMass ? parseFloat(formData.muscleMass) : null
@@ -51,9 +50,8 @@ function WeightTab({ token }) {
         { headers: { Authorization: `Bearer ${token}` } }
       )
 
-      setMessage('✅ Entrée ajoutée avec succès !')
+      setMessage('✅ Pesée ajoutée avec succès !')
       setFormData({
-        date: new Date().toISOString().split('T')[0],
         weight: '',
         bodyFat: '',
         muscleMass: ''
@@ -62,23 +60,23 @@ function WeightTab({ token }) {
       
       setTimeout(() => setMessage(''), 3000)
     } catch (error) {
-      console.error('Error adding entry:', error)
+      console.error('Error adding weight entry:', error)
       setMessage('❌ Erreur lors de l\'ajout')
     }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Supprimer cette entrée ?')) return
+    if (!confirm('Supprimer cette pesée ?')) return
 
     try {
       await axios.delete(`${API_URL}/api/weight/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      setMessage('✅ Entrée supprimée')
+      setMessage('✅ Pesée supprimée')
       fetchEntries()
       setTimeout(() => setMessage(''), 3000)
     } catch (error) {
-      console.error('Error deleting entry:', error)
+      console.error('Error deleting weight entry:', error)
       setMessage('❌ Erreur lors de la suppression')
     }
   }
@@ -104,25 +102,13 @@ function WeightTab({ token }) {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Date */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Date</label>
-            <input
-              type="date"
-              value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
-              required
-            />
-          </div>
-
           {/* Poids */}
           <div>
-            <label className="block text-sm font-medium mb-1">Poids (kg)</label>
+            <label className="block text-sm font-medium mb-1">Poids (kg) *</label>
             <input
               type="number"
-              min="1"
               step="0.1"
+              min="0"
               value={formData.weight}
               onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
@@ -136,13 +122,13 @@ function WeightTab({ token }) {
             <label className="block text-sm font-medium mb-1">Masse grasse (%) - Optionnel</label>
             <input
               type="number"
+              step="0.1"
               min="0"
               max="100"
-              step="0.1"
               value={formData.bodyFat}
               onChange={(e) => setFormData({ ...formData, bodyFat: e.target.value })}
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
-              placeholder="15.5"
+              placeholder="18.5"
             />
           </div>
 
@@ -151,8 +137,8 @@ function WeightTab({ token }) {
             <label className="block text-sm font-medium mb-1">Masse musculaire (kg) - Optionnel</label>
             <input
               type="number"
-              min="0"
               step="0.1"
+              min="0"
               value={formData.muscleMass}
               onChange={(e) => setFormData({ ...formData, muscleMass: e.target.value })}
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
@@ -164,12 +150,12 @@ function WeightTab({ token }) {
             type="submit"
             className="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition"
           >
-            Ajouter la pesée
+            Enregistrer la pesée
           </button>
         </form>
       </div>
 
-      {/* Liste des entrées */}
+      {/* Liste des pesées */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <h3 className="text-xl font-bold mb-4">Historique</h3>
         
@@ -184,14 +170,11 @@ function WeightTab({ token }) {
               >
                 <div className="flex-1">
                   <div className="font-medium text-lg">{entry.weight} kg</div>
-                  <div className="text-sm text-gray-600">{entry.date}</div>
-                  {(entry.bodyFat || entry.muscleMass) && (
-                    <div className="text-sm text-gray-600 mt-1">
-                      {entry.bodyFat && `Masse grasse: ${entry.bodyFat}%`}
-                      {entry.bodyFat && entry.muscleMass && ' • '}
-                      {entry.muscleMass && `Masse musculaire: ${entry.muscleMass} kg`}
-                    </div>
-                  )}
+                  <div className="text-sm text-gray-600">
+                    {entry.date}
+                    {entry.bodyFat && ` • Masse grasse: ${entry.bodyFat}%`}
+                    {entry.muscleMass && ` • Masse musculaire: ${entry.muscleMass} kg`}
+                  </div>
                 </div>
                 <button
                   onClick={() => handleDelete(entry.id)}
