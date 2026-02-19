@@ -20,9 +20,14 @@ function ExerciseManager({ token }) {
         headers: { Authorization: `Bearer ${token}` },
         params: { type }
       })
-      setExercises(response.data)
+      // Filter out any undefined/null/invalid entries
+      const validExercises = Array.isArray(response.data) 
+        ? response.data.filter(ex => ex && ex.id && ex.name)
+        : []
+      setExercises(validExercises)
     } catch (error) {
       console.error('Error fetching exercises:', error)
+      setExercises([])
     }
   }
 
@@ -120,7 +125,7 @@ function ExerciseManager({ token }) {
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
           >
             {loading ? 'Ajout...' : 'Ajouter'}
           </button>
@@ -134,20 +139,22 @@ function ExerciseManager({ token }) {
             Aucun exercice personnalisé pour le {type}
           </div>
         ) : (
-          exercises.map((exercise) => (
-            <div
-              key={exercise.id}
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-            >
-              <span className="font-medium text-gray-900">{exercise.name}</span>
-              <button
-                onClick={() => handleDelete(exercise.id)}
-                className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
+          exercises
+            .filter(exercise => exercise && exercise.id) // Double check
+            .map((exercise) => (
+              <div
+                key={exercise.id}
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
               >
-                Supprimer
-              </button>
-            </div>
-          ))
+                <span className="font-medium text-gray-900">{exercise.name}</span>
+                <button
+                  onClick={() => handleDelete(exercise.id)}
+                  className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
+                >
+                  Supprimer
+                </button>
+              </div>
+            ))
         )}
       </div>
 
