@@ -17,14 +17,16 @@ function CardioTab({ token, selectedDate }) {
   useEffect(() => {
     fetchActivities()
     fetchExercises()
-  }, [])
+  }, [selectedDate])
 
   const fetchActivities = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/cardio`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      setActivities(response.data)
+      // Filtrer par date sélectionnée
+      const filtered = response.data.filter(activity => activity.date === selectedDate)
+      setActivities(filtered)
     } catch (error) {
       console.error('Error fetching activities:', error)
     } finally {

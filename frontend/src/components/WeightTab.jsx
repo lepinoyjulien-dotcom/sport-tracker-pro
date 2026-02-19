@@ -15,14 +15,16 @@ function WeightTab({ token, selectedDate }) {
 
   useEffect(() => {
     fetchEntries()
-  }, [])
+  }, [selectedDate])
 
   const fetchEntries = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/weight`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      setEntries(response.data)
+      // Filtrer par date sélectionnée
+      const filtered = response.data.filter(entry => entry.date === selectedDate)
+      setEntries(filtered)
     } catch (error) {
       console.error('Error fetching weight entries:', error)
     } finally {
