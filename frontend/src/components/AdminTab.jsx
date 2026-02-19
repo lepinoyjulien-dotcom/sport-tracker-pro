@@ -114,7 +114,7 @@ function AdminTab({ token, currentUser }) {
   }
 
   const handleDeleteUser = async (userId, email) => {
-    if (userId === currentUser.id) {
+	if (currentUser && userId === currentUser.id) {
       alert('Vous ne pouvez pas supprimer votre propre compte !')
       return
     }
@@ -364,7 +364,7 @@ function AdminTab({ token, currentUser }) {
                         }`}>
                           {user.role}
                         </span>
-                        {user.id === currentUser.id && (
+			  {currentUser && user.id === currentUser.id && (
                           <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
                             Vous
                           </span>
@@ -387,7 +387,7 @@ function AdminTab({ token, currentUser }) {
                     Réinitialiser MDP
                   </button>
                   
-                  {user.id !== currentUser.id && (
+		    {currentUser && user.id !== currentUser.id && (
                     <>
                       <button
                         onClick={() => handleToggleRole(user.id, user.role, user.email)}
