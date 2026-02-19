@@ -346,7 +346,7 @@ function AdminTab({ token, currentUser }) {
         </div>
 
         <div className="divide-y divide-gray-100">
-          {users.map((user) => (
+		{users.filter(user => user && user.id).map((user) => (
             <div key={user.id} className="p-6 hover:bg-gray-50 transition-colors">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
