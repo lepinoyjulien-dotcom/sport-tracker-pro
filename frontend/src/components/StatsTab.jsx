@@ -59,23 +59,45 @@ function StatsTab({ token }) {
   }
 
   // Filter data by date range
-  const getDateRange = () => {
-    const today = new Date()
-    let startDate
-
-    if (period === 'custom' && customStartDate && customEndDate) {
+ const getDateRange = () => {
+  const today = new Date()
+  let startDate
+  
+  // Handle custom period
+  if (period === 'custom') {
+    if (customStartDate && customEndDate) {
       return { start: customStartDate, end: customEndDate }
     }
-
+    // Fallback to 7 days if custom dates not set
+    const fallbackDays = 7
     const daysAgo = new Date(today)
-    daysAgo.setDate(today.getDate() - period)
-    startDate = daysAgo.toISOString().split('T')[0]
-
+    daysAgo.setDate(today.getDate() - fallbackDays)
     return {
-      start: startDate,
+      start: daysAgo.toISOString().split('T')[0],
       end: today.toISOString().split('T')[0]
     }
   }
+  
+  // Handle numeric period
+  if (typeof period !== 'number') {
+    console.error('Invalid period:', period)
+    // Fallback to 7 days
+    const daysAgo = new Date(today)
+    daysAgo.setDate(today.getDate() - 7)
+    return {
+      start: daysAgo.toISOString().split('T')[0],
+      end: today.toISOString().split('T')[0]
+    }
+  }
+  
+  const daysAgo = new Date(today)
+  daysAgo.setDate(today.getDate() - period)
+  startDate = daysAgo.toISOString().split('T')[0]
+  return {
+    start: startDate,
+    end: today.toISOString().split('T')[0]
+  }
+}
 
   const filterByDateRange = (data) => {
     const { start, end } = getDateRange()
