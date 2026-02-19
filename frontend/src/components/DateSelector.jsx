@@ -4,28 +4,28 @@ function DateSelector({ selectedDate, onDateChange }) {
   const [showCalendar, setShowCalendar] = useState(false)
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'Date invalide'
-    
+    if (!dateString || typeof dateString !== 'string') return 'Date invalide'
+
     try {
       const date = new Date(dateString + 'T00:00:00')
-      if (isNaN(date.getTime())) return 'Date invalide'
-      
+      if (isNaN(date.getTime()) || date.getTime() < 0) return 'Date invalide'
+
       const today = new Date()
       today.setHours(0, 0, 0, 0)
-      
+
       const yesterday = new Date(today)
       yesterday.setDate(yesterday.getDate() - 1)
-      
+
       const selectedDateObj = new Date(dateString + 'T00:00:00')
       selectedDateObj.setHours(0, 0, 0, 0)
-      
+
       if (selectedDateObj.getTime() === today.getTime()) {
         return "Aujourd'hui"
       }
       if (selectedDateObj.getTime() === yesterday.getTime()) {
         return 'Hier'
       }
-      
+
       return date.toLocaleDateString('fr-FR', {
         weekday: 'long',
         day: 'numeric',
@@ -45,26 +45,59 @@ function DateSelector({ selectedDate, onDateChange }) {
   }
 
   const handleToday = () => {
-    const today = new Date()
-    const dateStr = today.toISOString().split('T')[0]
-    onDateChange(dateStr)
-    setShowCalendar(false)
+    try {
+      const today = new Date()
+      if (isNaN(today.getTime())) {
+        // Fallback if even new Date() fails
+        const now = new Date()
+        const year = now.getFullYear()
+        const month = String(now.getMonth() + 1).padStart(2, '0')
+        const day = String(now.getDate()).padStart(2, '0')
+        onDateChange(`${year}-${month}-${day}`)
+      } else {
+        const dateStr = today.toISOString().split('T')[0]
+        onDateChange(dateStr)
+      }
+      setShowCalendar(false)
+    } catch (error) {
+      console.error('Error in handleToday:', error)
+      // Ultimate fallback
+      const now = new Date()
+      onDateChange(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`)
+    }
   }
 
   const changeDay = (delta) => {
     try {
-      const currentDate = new Date(selectedDate + 'T00:00:00')
-      if (isNaN(currentDate.getTime())) {
+      // Validate selectedDate first
+      if (!selectedDate || typeof selectedDate !== 'string') {
         handleToday()
         return
       }
       
-      currentDate.setDate(currentDate.getDate() + delta)
-      const newDateStr = currentDate.toISOString().split('T')[0]
+      const currentDate = new Date(selectedDate + 'T00:00:00')
       
+      // Check if date is valid
+      if (isNaN(currentDate.getTime()) || currentDate.getTime() < 0) {
+        handleToday()
+        return
+      }
+
+      currentDate.setDate(currentDate.getDate() + delta)
+      
+      // Double check after setDate
+      if (isNaN(currentDate.getTime()) || currentDate.getTime() < 0) {
+        handleToday()
+        return
+      }
+      
+      const newDateStr = currentDate.toISOString().split('T')[0]
+
       // Don't allow future dates
-      const today = new Date().toISOString().split('T')[0]
-      if (newDateStr <= today) {
+      const todayDate = new Date()
+      const todayStr = todayDate.toISOString().split('T')[0]
+      
+      if (newDateStr <= todayStr) {
         onDateChange(newDateStr)
       }
     } catch (error) {
@@ -75,14 +108,27 @@ function DateSelector({ selectedDate, onDateChange }) {
 
   const isToday = () => {
     try {
-      const today = new Date().toISOString().split('T')[0]
-      return selectedDate === today
+      if (!selectedDate || typeof selectedDate !== 'string') return false
+      
+      const today = new Date()
+      const todayStr = today.toISOString().split('T')[0]
+      return selectedDate === todayStr
     } catch (error) {
       return false
     }
   }
 
-  const maxDate = new Date().toISOString().split('T')[0]
+  const getMaxDate = () => {
+    try {
+      const today = new Date()
+      return today.toISOString().split('T')[0]
+    } catch (error) {
+      const now = new Date()
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    }
+  }
+
+  const maxDate = getMaxDate()
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
@@ -105,7 +151,7 @@ function DateSelector({ selectedDate, onDateChange }) {
           >
             {formatDate(selectedDate)}
           </button>
-          
+
           {showCalendar && (
             <div className="absolute z-10 mt-2 bg-white border rounded-lg shadow-lg p-4 left-1/2 transform -translate-x-1/2">
               <input
