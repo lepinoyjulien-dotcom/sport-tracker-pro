@@ -97,9 +97,7 @@ function StatsTab({ token }) {
     end: today.toISOString().split('T')[0]
   }
 }
-      end: today.toISOString().split('T')[0]
-    }
-  }
+
 
   const filterByDateRange = (data) => {
     const { start, end } = getDateRange()
