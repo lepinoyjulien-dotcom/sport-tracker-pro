@@ -68,40 +68,57 @@ function DateSelector({ selectedDate, onDateChange }) {
   }
 
   const changeDay = (delta) => {
+    console.log('🔍 changeDay called:', { delta, selectedDate })
     try {
       // Validate selectedDate first
       if (!selectedDate || typeof selectedDate !== 'string') {
+        console.log('❌ Invalid selectedDate, calling handleToday')
         handleToday()
         return
       }
       
-      const currentDate = new Date(selectedDate + 'T00:00:00')
+      // Parse date parts to avoid timezone issues
+      const [year, month, day] = selectedDate.split('-').map(Number)
+      console.log('📅 Date parts:', { year, month, day })
+      
+      // Create date in UTC to avoid timezone shifts
+      const currentDate = new Date(Date.UTC(year, month - 1, day))
+      console.log('📅 Current date object (UTC):', currentDate)
       
       // Check if date is valid
       if (isNaN(currentDate.getTime()) || currentDate.getTime() < 0) {
+        console.log('❌ Invalid date time, calling handleToday')
         handleToday()
         return
       }
 
-      currentDate.setDate(currentDate.getDate() + delta)
+      // Add delta to the day (use UTC methods)
+      currentDate.setUTCDate(currentDate.getUTCDate() + delta)
+      console.log('➕ After adding delta:', currentDate)
       
       // Double check after setDate
       if (isNaN(currentDate.getTime()) || currentDate.getTime() < 0) {
+        console.log('❌ Invalid after setDate, calling handleToday')
         handleToday()
         return
       }
       
       const newDateStr = currentDate.toISOString().split('T')[0]
+      console.log('🆕 New date string:', newDateStr)
 
-      // Don't allow future dates
-      const todayDate = new Date()
-      const todayStr = todayDate.toISOString().split('T')[0]
+      // Don't allow future dates (use UTC for today too)
+      const today = new Date()
+      const todayStr = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())).toISOString().split('T')[0]
+      console.log('📆 Today string:', todayStr)
       
       if (newDateStr <= todayStr) {
+        console.log('✅ Calling onDateChange with:', newDateStr)
         onDateChange(newDateStr)
+      } else {
+        console.log('⚠️ Date is in future, blocking')
       }
     } catch (error) {
-      console.error('Error changing date:', error)
+      console.error('❌ Error changing date:', error)
       handleToday()
     }
   }
@@ -111,7 +128,9 @@ function DateSelector({ selectedDate, onDateChange }) {
       if (!selectedDate || typeof selectedDate !== 'string') return false
       
       const today = new Date()
-      const todayStr = today.toISOString().split('T')[0]
+      // Use UTC to avoid timezone issues
+      const todayStr = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())).toISOString().split('T')[0]
+      console.log('🔍 isToday check:', { selectedDate, todayStr, result: selectedDate === todayStr })
       return selectedDate === todayStr
     } catch (error) {
       return false
