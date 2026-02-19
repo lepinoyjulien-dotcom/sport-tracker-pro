@@ -1,4 +1,4 @@
-// Force rebuild 2026-02-18 23:30
+// Force rebuild 2026-02-19 11:30 - FINAL FIX
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { ExercisesProvider } from './ExercisesContext'
@@ -263,7 +263,22 @@ function RegisterForm({ onSuccess, onToggle }) {
 
 function Dashboard({ token, user, onLogout, onUserUpdate }) {
   const [activeTab, setActiveTab] = useState('stats')
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const [selectedDate, setSelectedDate] = useState(() => {
+    try {
+      const today = new Date()
+      if (isNaN(today.getTime())) {
+        // Fallback si new Date() échoue
+        const now = new Date()
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+      }
+      return today.toISOString().split('T')[0]
+    } catch (error) {
+      console.error('Error initializing date:', error)
+      // Ultimate fallback
+      const now = new Date()
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    }
+  })
   const [visibleTabs, setVisibleTabs] = useState({ cardio: true, muscu: true, weight: true })
 
   useEffect(() => {
