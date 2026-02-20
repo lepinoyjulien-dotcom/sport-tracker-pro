@@ -32,7 +32,11 @@ router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
 // DELETE /api/admin/users/:id - Delete a user (admin only)
 router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = req.params.id;
+
+if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+  return res.status(400).json({ error: 'ID utilisateur invalide' });
+}
 
     // Validate userId
     if (!userId || isNaN(userId)) {
