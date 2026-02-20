@@ -95,9 +95,9 @@ router.post('/login', async (req, res) => {
     }
 
     // Update last login
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLogin: new Date() }
+//    await prisma.user.update({
+  //    where: { id: user.id },
+//      data: { lastLogin: new Date() }
     });
 
     // Generate JWT token
