@@ -32,13 +32,13 @@ router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
 // DELETE /api/admin/users/:id - Delete a user (admin only)
 router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const userId = req.params.id;
+    const userId = parseInt(req.params.id);
 
-if (!userId || typeof userId !== 'string' || userId.trim() === '') {
-  return res.status(400).json({ error: 'ID utilisateur invalide' });
-}
+    // Validate userId
+    if (!userId || isNaN(userId)) {
+      return res.status(400).json({ error: 'ID utilisateur invalide' });
+    }
 
-  
     // Prevent admin from deleting themselves
     if (userId === req.userId) {
       return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte' });
@@ -181,6 +181,57 @@ router.get('/settings/calories', authMiddleware, adminMiddleware, async (req, re
   } catch (error) {
     console.error('Error fetching calorie settings:', error);
     res.status(500).json({ error: 'Erreur lors de la récupération des paramètres' });
+  }
+});
+
+// PUT /api/admin/settings/calories - Update calorie settings (admin only)
+router.put('/settings/calories', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { cardio, muscu } = req.body;
+
+    // Validation
+    if (!cardio || !muscu) {
+      return res.status(400).json({ error: 'Paramètres cardio et muscu requis' });
+    }
+
+    // Validate cardio MET values
+    if (!cardio.Faible || !cardio.Moyenne || !cardio.Haute) {
+      return res.status(400).json({ error: 'Valeurs MET cardio incomplètes' });
+    }
+
+    if (cardio.Faible < 1 || cardio.Moyenne < 1 || cardio.Haute < 1) {
+      return res.status(400).json({ error: 'Les valeurs MET doivent être positives' });
+    }
+
+    // Validate muscu value
+    if (!muscu.perSet || muscu.perSet < 1) {
+      return res.status(400).json({ error: 'Valeur muscu invalide' });
+    }
+
+    // Note: Currently storing in-memory only (no database persistence)
+    // In a real app, these would be stored in a Settings table
+    const settings = {
+      cardio: {
+        Faible: Number(cardio.Faible),
+        Moyenne: Number(cardio.Moyenne),
+        Haute: Number(cardio.Haute)
+      },
+      muscu: {
+        perSet: Number(muscu.perSet)
+      }
+    };
+
+    console.log('⚠️ Calorie settings updated (in-memory only):', settings);
+    console.log('Note: Settings will reset on server restart. Consider storing in database.');
+
+    res.json({
+      message: 'Paramètres mis à jour avec succès (temporaire)',
+      settings,
+      warning: 'Les paramètres seront réinitialisés au redémarrage du serveur'
+    });
+  } catch (error) {
+    console.error('Error updating calorie settings:', error);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour des paramètres' });
   }
 });
 
