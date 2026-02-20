@@ -38,11 +38,7 @@ if (!userId || typeof userId !== 'string' || userId.trim() === '') {
   return res.status(400).json({ error: 'ID utilisateur invalide' });
 }
 
-    // Validate userId
-    if (!userId || isNaN(userId)) {
-      return res.status(400).json({ error: 'ID utilisateur invalide' });
-    }
-
+  
     // Prevent admin from deleting themselves
     if (userId === req.userId) {
       return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte' });
