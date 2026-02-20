@@ -33,7 +33,19 @@ router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
 router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
-
+router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    
+    // Validation de l'ID
+    if (!userId || isNaN(userId)) {
+      return res.status(400).json({ error: 'ID utilisateur invalide' });
+    }
+    
+    // Prevent admin from deleting themselves
+    if (userId === req.userId) {
+      return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte' });
+    }
     // Prevent admin from deleting themselves
     if (userId === req.userId) {
       return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte' });
