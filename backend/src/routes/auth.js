@@ -94,11 +94,11 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     }
 
-    // Update last login
+// Update last login
 //    await prisma.user.update({
-  //    where: { id: user.id },
+//    where: { id: user.id },
 //      data: { lastLogin: new Date() }
-    });
+//    });
 
     // Generate JWT token
     const token = jwt.sign(
