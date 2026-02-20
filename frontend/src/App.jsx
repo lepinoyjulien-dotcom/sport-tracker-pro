@@ -383,7 +383,7 @@ function Dashboard({ token, user, onLogout, onUserUpdate }) {
         {activeTab === 'muscu' && <MuscuTab token={token} selectedDate={selectedDate} user={user} />}
         {activeTab === 'weight' && <WeightTab token={token} selectedDate={selectedDate} />}
         {activeTab === 'profile' && <ProfileTab token={token} user={user} onUserUpdate={onUserUpdate} />}
-        {activeTab === 'admin' && user?.role === 'admin' && <AdminTab token={token} />}
+        {activeTab === 'admin' && user?.role === 'admin' && <AdminTab token={token} currentUser={user} />}
       </div>
     </div>
   )
