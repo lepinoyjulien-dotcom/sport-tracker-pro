@@ -31,19 +31,23 @@ router.post('/register', async (req, res) => {
         name,
         email,
         password: hashedPassword,
-        role: 'user',
-        weight: 70
+        role: 'user', // Default role
+        weight: 70 // Default weight
       }
     });
 
-    // Send welcome email with credentials
-    try {
-      await sendWelcomeEmail(email, name, password);
-      console.log(`✅ Welcome email sent to ${email}`);
-    } catch (emailError) {
-      console.error('⚠️  Failed to send welcome email:', emailError);
-      // Don't fail registration if email fails
-    }
+    // Send welcome email (non-blocking)
+    sendWelcomeEmail(user.email, user.name)
+      .then(result => {
+        if (result.success) {
+          console.log('✅ Welcome email sent to:', user.email);
+        } else {
+          console.warn('⚠️ Failed to send welcome email:', result.error || result.message);
+        }
+      })
+      .catch(error => {
+        console.error('❌ Error sending welcome email:', error);
+      });
 
     // Generate JWT token
     const token = jwt.sign(
@@ -60,7 +64,7 @@ router.post('/register', async (req, res) => {
         name: user.name,
         email: user.email,
         weight: user.weight,
-        role: user.role
+        role: user.role // Include role in response
       }
     });
   } catch (error) {
@@ -90,6 +94,12 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     }
 
+    // Update last login
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() }
+    });
+
     // Generate JWT token
     const token = jwt.sign(
       { userId: user.id },
@@ -105,7 +115,7 @@ router.post('/login', async (req, res) => {
         name: user.name,
         email: user.email,
         weight: user.weight,
-        role: user.role,
+        role: user.role, // CRITICAL: Include role in response
         createdAt: user.createdAt
       }
     });

@@ -1,21 +1,13 @@
-// backend/src/routes/admin.js
-// Routes d'administration - VERSION CORRIGÉE
-
 const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcrypt');
 const authMiddleware = require('../middleware/auth');
 const adminMiddleware = require('../middleware/admin');
 
 const prisma = new PrismaClient();
 
-// Appliquer les middlewares
-router.use(authMiddleware);
-router.use(adminMiddleware);
-
-// GET /api/admin/users - Liste utilisateurs (SANS champs inexistants)
-router.get('/users', async (req, res) => {
+// GET /api/admin/users - Get all users (admin only)
+router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       select: {
@@ -26,7 +18,7 @@ router.get('/users', async (req, res) => {
         role: true
       },
       orderBy: {
-        name: 'asc'
+        id: 'asc'
       }
     });
 
@@ -37,21 +29,108 @@ router.get('/users', async (req, res) => {
   }
 });
 
-// GET /api/admin/stats - Statistiques globales
-router.get('/stats', async (req, res) => {
+// DELETE /api/admin/users/:id - Delete a user (admin only)
+router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const [totalUsers, totalCardio, totalMuscu, totalWeight] = await Promise.all([
+    const userId = parseInt(req.params.id);
+
+    // Prevent admin from deleting themselves
+    if (userId === req.userId) {
+      return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte' });
+    }
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé' });
+    }
+
+    // Delete user's data first (cascade delete)
+    await prisma.$transaction([
+      // Delete cardio activities
+      prisma.cardio.deleteMany({
+        where: { userId }
+      }),
+      // Delete muscu activities
+      prisma.muscu.deleteMany({
+        where: { userId }
+      }),
+      // Delete weight entries
+      prisma.weight.deleteMany({
+        where: { userId }
+      }),
+      // Delete custom exercises
+      prisma.exercise.deleteMany({
+        where: { userId }
+      }),
+      // Finally delete the user
+      prisma.user.delete({
+        where: { id: userId }
+      })
+    ]);
+
+    console.log(`✅ User deleted: ${user.email} (ID: ${userId})`);
+    
+    res.json({ 
+      message: 'Utilisateur supprimé avec succès',
+      deletedUser: {
+        id: user.id,
+        email: user.email,
+        name: user.name
+      }
+    });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression de l\'utilisateur' });
+  }
+});
+
+// POST /api/admin/reset-password - Reset user password (admin only)
+router.post('/reset-password', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { userId, newPassword } = req.body;
+
+    if (!userId || !newPassword) {
+      return res.status(400).json({ error: 'User ID et nouveau mot de passe requis' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 6 caractères' });
+    }
+
+    const bcrypt = require('bcrypt');
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: parseInt(userId) },
+      data: { password: hashedPassword }
+    });
+
+    res.json({ message: 'Mot de passe réinitialisé avec succès' });
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    res.status(500).json({ error: 'Erreur lors de la réinitialisation du mot de passe' });
+  }
+});
+
+// GET /api/admin/stats - Get global statistics (admin only)
+router.get('/stats', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const [userCount, cardioCount, muscuCount, weightCount] = await Promise.all([
       prisma.user.count(),
-      prisma.cardioActivity.count(),
-      prisma.muscuActivity.count(),
-      prisma.weightEntry.count()
+      prisma.cardio.count(),
+      prisma.muscu.count(),
+      prisma.weight.count()
     ]);
 
     res.json({
-      totalUsers,
-      totalCardio,
-      totalMuscu,
-      totalWeight
+      users: userCount,
+      cardioActivities: cardioCount,
+      muscuActivities: muscuCount,
+      weightEntries: weightCount
     });
   } catch (error) {
     console.error('Error fetching stats:', error);
@@ -59,102 +138,25 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// DELETE /api/admin/users/:id - Supprimer utilisateur
-router.delete('/users/:id', async (req, res) => {
+// GET /api/admin/settings/calories - Get calorie settings
+router.get('/settings/calories', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { id } = req.params;
-
-    await prisma.user.delete({
-      where: { id }
-    });
-
-    res.json({ success: true, message: 'Utilisateur supprimé' });
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    res.status(500).json({ error: 'Erreur lors de la suppression' });
-  }
-});
-
-// PUT /api/admin/users/:id - Modifier utilisateur
-router.put('/users/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, email, role, weight } = req.body;
-
-    const updateData = {};
-    if (name) updateData.name = name;
-    if (email) updateData.email = email;
-    if (role) updateData.role = role;
-    if (weight) updateData.weight = parseFloat(weight);
-
-    const user = await prisma.user.update({
-      where: { id },
-      data: updateData,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        weight: true,
-        role: true
-      }
-    });
-
-    res.json(user);
-  } catch (error) {
-    console.error('Error updating user:', error);
-    res.status(500).json({ error: 'Erreur lors de la mise à jour' });
-  }
-});
-
-// GET /api/admin/settings/calories - Récupérer paramètres calories
-router.get('/settings/calories', async (req, res) => {
-  try {
-    // Valeurs par défaut
-    const defaultSettings = {
+    // Return default MET values
+    const settings = {
       cardio: {
-        low: 4,
-        medium: 7,
-        high: 10
+        Faible: 4,
+        Moyenne: 7,
+        Haute: 10
       },
       muscu: {
         perSet: 5
       }
     };
 
-    // TODO: Stocker en base si besoin
-    res.json(defaultSettings);
+    res.json(settings);
   } catch (error) {
     console.error('Error fetching calorie settings:', error);
     res.status(500).json({ error: 'Erreur lors de la récupération des paramètres' });
-  }
-});
-
-// PUT /api/admin/settings/calories - Mettre à jour paramètres calories
-router.put('/settings/calories', async (req, res) => {
-  try {
-    const { cardio, muscu } = req.body;
-
-    // Validation
-    if (!cardio || !muscu) {
-      return res.status(400).json({ error: 'Paramètres incomplets' });
-    }
-
-    // TODO: Stocker en base si besoin
-    const settings = {
-      cardio: {
-        low: parseInt(cardio.low) || 4,
-        medium: parseInt(cardio.medium) || 7,
-        high: parseInt(cardio.high) || 10
-      },
-      muscu: {
-        perSet: parseInt(muscu.perSet) || 5
-      }
-    };
-
-    res.json(settings);
-  } catch (error) {
-    console.error('Error updating calorie settings:', error);
-    res.status(500).json({ error: 'Erreur lors de la mise à jour des paramètres' });
   }
 });
 

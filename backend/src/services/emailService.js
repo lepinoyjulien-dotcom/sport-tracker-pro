@@ -1,129 +1,183 @@
-// backend/src/services/emailService.js
-// Service d'envoi d'emails
+const { Resend } = require('resend');
 
-// IMPORTANT: Pour un environnement de production, utilisez un vrai service d'email
-// comme SendGrid, Mailgun, AWS SES, etc.
+// Initialize Resend with API key
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Pour le développement, ce service simule l'envoi d'email et log dans la console
+/**
+ * Send welcome email to new user
+ * @param {string} userEmail - User's email address
+ * @param {string} userName - User's name
+ */
+const sendWelcomeEmail = async (userEmail, userName) => {
+  // Skip if no API key configured
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('⚠️ RESEND_API_KEY not configured. Skipping welcome email.');
+    return { success: false, message: 'Email service not configured' };
+  }
 
-const sendWelcomeEmail = async (userEmail, userName, userPassword) => {
-  const emailContent = `
-==============================================
-BIENVENUE SUR SPORT TRACKER PRO
-==============================================
+  try {
+    const { data, error } = await resend.emails.send({
+      from: 'Sport Tracker Pro <onboarding@resend.dev>', // Change this to your domain later
+      to: [userEmail],
+      subject: '🎉 Bienvenue sur Sport Tracker Pro !',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Bienvenue sur Sport Tracker Pro</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px;">
+            <tr>
+              <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                  
+                  <!-- Header -->
+                  <tr>
+                    <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center;">
+                      <h1 style="color: white; margin: 0; font-size: 32px;">💪</h1>
+                      <h2 style="color: white; margin: 10px 0 0 0; font-size: 24px;">Sport Tracker Pro</h2>
+                    </td>
+                  </tr>
+                  
+                  <!-- Content -->
+                  <tr>
+                    <td style="padding: 40px 30px;">
+                      <h3 style="color: #333; margin: 0 0 20px 0;">Bienvenue ${userName} ! 👋</h3>
+                      
+                      <p style="color: #666; line-height: 1.6; margin: 0 0 20px 0;">
+                        Nous sommes ravis de vous accueillir sur <strong>Sport Tracker Pro</strong>, 
+                        votre compagnon pour suivre vos performances sportives !
+                      </p>
+                      
+                      <div style="background-color: #f8f9fa; border-left: 4px solid #667eea; padding: 20px; margin: 20px 0;">
+                        <h4 style="color: #333; margin: 0 0 15px 0;">🚀 Pour commencer :</h4>
+                        <ul style="color: #666; line-height: 1.8; margin: 0; padding-left: 20px;">
+                          <li>Ajoutez vos activités cardio 🏃</li>
+                          <li>Suivez vos séances de musculation 💪</li>
+                          <li>Trackez votre poids ⚖️</li>
+                          <li>Visualisez vos statistiques 📊</li>
+                        </ul>
+                      </div>
+                      
+                      <div style="text-align: center; margin: 30px 0;">
+                        <a href="https://sport-tracker-pro.vercel.app" 
+                           style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 15px 40px; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                          Accéder à l'application
+                        </a>
+                      </div>
+                      
+                      <p style="color: #999; font-size: 14px; margin: 30px 0 0 0; line-height: 1.6;">
+                        Besoin d'aide ? Répondez simplement à cet email.
+                      </p>
+                    </td>
+                  </tr>
+                  
+                  <!-- Footer -->
+                  <tr>
+                    <td style="background-color: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #e9ecef;">
+                      <p style="color: #999; font-size: 12px; margin: 0;">
+                        © ${new Date().getFullYear()} Sport Tracker Pro - Tous droits réservés
+                      </p>
+                    </td>
+                  </tr>
+                  
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+      `
+    });
 
-Bonjour ${userName},
-
-Votre compte a été créé avec succès !
-
-VOS IDENTIFIANTS :
-------------------
-Email    : ${userEmail}
-Mot de passe : ${userPassword}
-
-IMPORTANT :
-- Conservez ces identifiants en lieu sûr
-- Nous vous recommandons de changer votre mot de passe
-  dès votre première connexion (Onglet Profil)
-
-COMMENCER :
------------
-1. Rendez-vous sur : https://sport-tracker-pro.vercel.app
-2. Connectez-vous avec vos identifiants
-3. Explorez les fonctionnalités :
-   - Cardio : Suivez vos activités cardiovasculaires
-   - Muscu : Enregistrez vos séances de musculation
-   - Poids : Suivez l'évolution de votre poids
-   - Stats : Visualisez vos progrès
-   - Profil : Personnalisez votre expérience
-
-BESOIN D'AIDE ?
----------------
-Contactez notre support : support@sporttracker.com
-
-Merci de votre confiance !
-
-L'équipe Sport Tracker Pro
-==============================================
-  `
-
-  // DÉVELOPPEMENT : Log dans la console
-  console.log('\n' + '='.repeat(60))
-  console.log('📧 EMAIL ENVOYÉ')
-  console.log('='.repeat(60))
-  console.log(`To: ${userEmail}`)
-  console.log(`Subject: Bienvenue sur Sport Tracker Pro`)
-  console.log('='.repeat(60))
-  console.log(emailContent)
-  console.log('='.repeat(60) + '\n')
-
-  // PRODUCTION : Décommentez le code ci-dessous et configurez votre service d'email
-
-  /*
-  // Exemple avec nodemailer (installer : npm install nodemailer)
-  const nodemailer = require('nodemailer')
-  
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    secure: true,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
+    if (error) {
+      console.error('❌ Error sending welcome email:', error);
+      return { success: false, error };
     }
-  })
 
-  await transporter.sendMail({
-    from: '"Sport Tracker Pro" <noreply@sporttracker.com>',
-    to: userEmail,
-    subject: 'Bienvenue sur Sport Tracker Pro - Vos identifiants',
-    text: emailContent,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #7c3aed;">Bienvenue sur Sport Tracker Pro</h1>
-        <p>Bonjour <strong>${userName}</strong>,</p>
-        <p>Votre compte a été créé avec succès !</p>
-        
-        <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3>Vos identifiants :</h3>
-          <p><strong>Email :</strong> ${userEmail}</p>
-          <p><strong>Mot de passe :</strong> ${userPassword}</p>
-        </div>
-        
-        <div style="background: #fef3c7; padding: 15px; border-left: 4px solid #f59e0b; margin: 20px 0;">
-          <p><strong>Important :</strong> Conservez ces identifiants en lieu sûr et changez votre mot de passe dès votre première connexion.</p>
-        </div>
-        
-        <a href="https://sport-tracker-pro.vercel.app" 
-           style="display: inline-block; background: #7c3aed; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin: 20px 0;">
-          Se connecter
-        </a>
-        
-        <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-          L'équipe Sport Tracker Pro
-        </p>
-      </div>
-    `
-  })
-  */
+    console.log('✅ Welcome email sent to:', userEmail);
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Exception sending welcome email:', error);
+    return { success: false, error: error.message };
+  }
+};
 
-  // PRODUCTION : Exemple avec SendGrid
-  /*
-  const sgMail = require('@sendgrid/mail')
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY)
-  
-  await sgMail.send({
-    to: userEmail,
-    from: 'noreply@sporttracker.com',
-    subject: 'Bienvenue sur Sport Tracker Pro - Vos identifiants',
-    text: emailContent,
-    html: ... // même HTML que ci-dessus
-  })
-  */
+/**
+ * Send password reset email
+ * @param {string} userEmail - User's email
+ * @param {string} resetToken - Reset token
+ */
+const sendPasswordResetEmail = async (userEmail, resetToken) => {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('⚠️ RESEND_API_KEY not configured. Skipping reset email.');
+    return { success: false, message: 'Email service not configured' };
+  }
 
-  return true
-}
+  const resetLink = `https://sport-tracker-pro.vercel.app/reset-password?token=${resetToken}`;
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: 'Sport Tracker Pro <onboarding@resend.dev>',
+      to: [userEmail],
+      subject: '🔐 Réinitialisation de votre mot de passe',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Réinitialisation mot de passe</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px;">
+            <tr>
+              <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 10px; padding: 40px;">
+                  <tr>
+                    <td>
+                      <h2 style="color: #333;">🔐 Réinitialisation de mot de passe</h2>
+                      <p style="color: #666; line-height: 1.6;">
+                        Vous avez demandé à réinitialiser votre mot de passe. 
+                        Cliquez sur le bouton ci-dessous pour continuer :
+                      </p>
+                      <div style="text-align: center; margin: 30px 0;">
+                        <a href="${resetLink}" 
+                           style="display: inline-block; background-color: #667eea; color: white; text-decoration: none; padding: 15px 40px; border-radius: 8px; font-weight: bold;">
+                          Réinitialiser mon mot de passe
+                        </a>
+                      </div>
+                      <p style="color: #999; font-size: 14px;">
+                        Ce lien expire dans 1 heure.<br>
+                        Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+      `
+    });
+
+    if (error) {
+      console.error('❌ Error sending reset email:', error);
+      return { success: false, error };
+    }
+
+    console.log('✅ Reset email sent to:', userEmail);
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Exception sending reset email:', error);
+    return { success: false, error: error.message };
+  }
+};
 
 module.exports = {
-  sendWelcomeEmail
-}
+  sendWelcomeEmail,
+  sendPasswordResetEmail
+};
