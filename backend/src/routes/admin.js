@@ -32,11 +32,7 @@ router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
 // DELETE /api/admin/users/:id - Delete a user (admin only)
 router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-const userId = parseInt(req.params.id);
-
-if (!userId || isNaN(userId)) {
-  return res.status(400).json({ error: 'ID utilisateur invalide' });
-}
+    const userId = parseInt(req.params.id);
 
     // Prevent admin from deleting themselves
     if (userId === req.userId) {
@@ -121,46 +117,22 @@ router.post('/reset-password', authMiddleware, adminMiddleware, async (req, res)
 });
 
 // GET /api/admin/stats - Get global statistics (admin only)
-// GET /api/admin/stats - Get global statistics (admin only)
 router.get('/stats', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const stats = {
-      users: 0,
-      cardioActivities: 0,
-      muscuActivities: 0,
-      weightEntries: 0
-    };
+    const [userCount, cardioCount, muscuCount, weightCount] = await Promise.all([
+      prisma.user.count(),
+      prisma.cardio.count(),
+      prisma.muscu.count(),
+      prisma.weight.count()
+    ]);
 
-    try {
-      stats.users = await prisma.user.count();
-    } catch (e) {
-      console.warn('Failed to count users:', e.message);
-    }
-
-    try {
-      stats.cardioActivities = await prisma.cardio.count();
-    } catch (e) {
-      console.warn('Failed to count cardio:', e.message);
-    }
-
-    try {
-      stats.muscuActivities = await prisma.muscu.count();
-    } catch (e) {
-      console.warn('Failed to count muscu:', e.message);
-    }
-
-    try {
-      stats.weightEntries = await prisma.weight.count();
-    } catch (e) {
-      console.warn('Failed to count weight:', e.message);
-    }
-
-    res.json(stats);
+    res.json({
+      users: userCount,
+      cardioActivities: cardioCount,
+      muscuActivities: muscuCount,
+      weightEntries: weightCount
+    });
   } catch (error) {
-    console.error('Error fetching stats:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des statistiques' });
-  }
-});
     console.error('Error fetching stats:', error);
     res.status(500).json({ error: 'Erreur lors de la récupération des statistiques' });
   }
