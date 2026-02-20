@@ -56,15 +56,15 @@ router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) =>
     // Delete user's data first (cascade delete)
     await prisma.$transaction([
       // Delete cardio activities
-      prisma.cardio.deleteMany({
+      prisma.cardioActivity.deleteMany({
         where: { userId }
       }),
       // Delete muscu activities
-      prisma.muscu.deleteMany({
+      prisma.muscuActivity.deleteMany({
         where: { userId }
       }),
       // Delete weight entries
-      prisma.weight.deleteMany({
+      prisma.weightEntry.deleteMany({
         where: { userId }
       }),
       // Delete custom exercises
@@ -138,19 +138,19 @@ router.get('/stats', authMiddleware, adminMiddleware, async (req, res) => {
     }
 
     try {
-      stats.cardioActivities = await prisma.cardio.count();
+      stats.cardioActivities = await prisma.cardioActivity.count();
     } catch (e) {
       console.warn('Failed to count cardio:', e.message);
     }
 
     try {
-      stats.muscuActivities = await prisma.muscu.count();
+      stats.muscuActivities = await prisma.muscuActivity.count();
     } catch (e) {
       console.warn('Failed to count muscu:', e.message);
     }
 
     try {
-      stats.weightEntries = await prisma.weight.count();
+      stats.weightEntries = await prisma.weightEntry.count();
     } catch (e) {
       console.warn('Failed to count weight:', e.message);
     }
